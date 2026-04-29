@@ -1,6 +1,67 @@
-<section class="settings-page">
-  <header class="settings-header">
-    <h1>Configuración</h1>
-    <p>Estructura inicial del módulo de configuración.</p>
+<section class="settings-page app-page">
+  <header class="section-head">
+    <div>
+      <h1 class="page-title">Configuración del sistema</h1>
+      <p class="page-subtitle">Parámetros generales para inventario y operación interna.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-primary btn-sm" (click)="resetToDefaults()">Restablecer</button>
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveConfig()">Guardar cambios</button>
+    </div>
   </header>
+
+  <form class="settings-grid" [formGroup]="configForm" (ngSubmit)="saveConfig()">
+    <article class="card p-3 p-md-4">
+      <h5 class="panel-title mb-3">Datos de la empresa</h5>
+      <div class="row g-3">
+        <div class="col-12 col-md-7">
+          <label class="form-label">Nombre de empresa</label>
+          <input type="text" class="form-control" formControlName="nombreEmpresa" placeholder="Ingrese nombre" />
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label">RUC</label>
+          <input type="text" class="form-control" formControlName="ruc" maxlength="11" placeholder="11 dígitos" />
+        </div>
+      </div>
+    </article>
+
+    <article class="card p-3 p-md-4">
+      <h5 class="panel-title mb-3">Parámetros operativos</h5>
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Moneda</label>
+          <select class="form-select" formControlName="moneda">
+            <option value="PEN">PEN - Soles</option>
+            <option value="USD">USD - Dólares</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Impuesto (%)</label>
+          <input type="number" class="form-control" formControlName="impuestoPorcentaje" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Umbral stock bajo</label>
+          <input type="number" class="form-control" formControlName="umbralStockBajo" />
+        </div>
+      </div>
+    </article>
+
+    <article class="card p-3 p-md-4">
+      <h5 class="panel-title mb-3">Preferencias</h5>
+      <div class="form-check form-switch mb-3">
+        <input id="alertasActivas" class="form-check-input" type="checkbox" formControlName="alertasActivas" />
+        <label class="form-check-label" for="alertasActivas">Activar alertas automáticas</label>
+      </div>
+      <div class="form-check form-switch">
+        <input id="modoOscuro" class="form-check-input" type="checkbox" formControlName="modoOscuro" />
+        <label class="form-check-label" for="modoOscuro">Modo oscuro (próximamente)</label>
+      </div>
+    </article>
+  </form>
+
+  @if (feedback) {
+    <div class="card p-3 settings-feedback">
+      {{ feedback }}
+    </div>
+  }
 </section>
