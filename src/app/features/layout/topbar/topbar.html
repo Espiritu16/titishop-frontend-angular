@@ -11,8 +11,8 @@
     <div class="topbar-user d-flex align-items-center gap-2">
       <span class="topbar-user-dot"></span>
       <div class="d-flex flex-column lh-sm">
-        <strong>Administrador</strong>
-        <small>Sesión demo</small>
+        <strong>{{ auth.session()?.fullName || 'Usuario sin sesión' }}</strong>
+        <small>{{ auth.session()?.role || 'Sin rol' }}</small>
       </div>
     </div>
   </div>
