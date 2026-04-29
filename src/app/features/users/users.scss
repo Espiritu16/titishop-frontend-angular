@@ -1,0 +1,19 @@
+.users-page {
+  padding: 1rem;
+}
+
+.panel-title {
+  color: #2a446f;
+  font-weight: 800;
+}
+
+.users-feedback {
+  color: #2a446f;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .users-page {
+    padding: 0.75rem;
+  }
+}

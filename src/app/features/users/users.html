@@ -1,0 +1,89 @@
+<section class="users-page app-page">
+  <header class="section-head">
+    <div>
+      <h1 class="page-title">Gestión de usuarios</h1>
+      <p class="page-subtitle">Administración de cuentas internas y perfiles de acceso.</p>
+    </div>
+    <div class="d-flex gap-2">
+      @if (editingUserId) {
+        <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
+      }
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveUser()">
+        {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
+      </button>
+    </div>
+  </header>
+
+  <article class="card p-3 p-md-4">
+    <h5 class="panel-title mb-3">Datos del usuario</h5>
+    <form class="row g-3" [formGroup]="userForm" (ngSubmit)="saveUser()">
+      <div class="col-12 col-md-5">
+        <label class="form-label">Nombre completo</label>
+        <input type="text" class="form-control" formControlName="fullName" placeholder="Ingrese nombre" />
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Correo</label>
+        <input type="email" class="form-control" formControlName="email" placeholder="usuario@dominio.com" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Rol</label>
+        <select class="form-select" formControlName="role">
+          @for (role of roles; track role) {
+            <option [value]="role">{{ role }}</option>
+          }
+        </select>
+      </div>
+    </form>
+  </article>
+
+  <article class="card p-3 p-md-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="panel-title mb-0">Listado de usuarios</h5>
+      <span class="badge text-bg-primary">{{ users.length }} registrados</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Correo</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Registro</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users; track user.id) {
+            <tr>
+              <td>{{ user.fullName }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.role }}</td>
+              <td><span [class]="statusBadgeClass(user.status)">{{ user.status }}</span></td>
+              <td>{{ user.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td class="text-end">
+                <div class="d-inline-flex gap-2">
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="editUser(user)">Editar</button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    (click)="toggleStatus(user.id)"
+                  >
+                    {{ user.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  @if (feedback) {
+    <div class="card p-3 users-feedback">
+      {{ feedback }}
+    </div>
+  }
+</section>
