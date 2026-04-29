@@ -9,16 +9,22 @@
       <div class="col-md-7 p-4 p-md-5">
         <h5 class="mb-1">Bienvenido</h5>
         <p class="text-secondary mb-4">Ingresa tus credenciales para continuar</p>
-        <form>
+        <form (ngSubmit)="submit()">
           <div class="mb-3">
             <label class="form-label">Correo</label>
-            <input name="email" class="form-control" type="email" required />
+            <input [(ngModel)]="email" name="email" class="form-control" type="email" required />
           </div>
           <div class="mb-3">
             <label class="form-label">Contraseña</label>
-            <input name="password" class="form-control" type="password" required />
+            <input [(ngModel)]="password" name="password" class="form-control" type="password" required />
           </div>
-          <button class="btn btn-primary w-100" type="button">Ingresar al sistema</button>
+          @if (error) {
+            <div class="alert alert-danger py-2">{{ error }}</div>
+          }
+          @if (message) {
+            <div class="alert alert-success py-2">{{ message }}</div>
+          }
+          <button class="btn btn-primary w-100" type="submit" [disabled]="!canSubmit">Ingresar al sistema</button>
         </form>
         <small class="d-block mt-3 text-secondary">Admin demo: admin@titishop.pe / 123456</small>
       </div>
