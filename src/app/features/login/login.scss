@@ -1,3 +1,43 @@
-.login-container {
-  padding: 2rem;
+.login-page {
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: min(940px, 100%);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.login-aside {
+  background: linear-gradient(160deg, rgba(191, 236, 221, 0.75), rgba(175, 207, 244, 0.8));
+  border-right: 1px solid rgba(221, 231, 242, 0.8);
+}
+
+.brand-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  color: #214b82;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.login-aside h3 {
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  font-weight: 800;
+  color: #254364;
+}
+
+.login-aside p {
+  color: #325477;
+}
+
+@media (max-width: 767px) {
+  .login-aside {
+    border-right: 0;
+    border-bottom: 1px solid rgba(221, 231, 242, 0.8);
+  }
 }
