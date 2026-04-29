@@ -11,57 +11,32 @@
   </header>
 
   <section class="kpi-grid">
-    <article class="card p-3 kpi-card">
-      <p class="kpi-label">Productos activos</p>
-      <h3 class="kpi-value">248</h3>
-      <span class="kpi-meta success">+12 este mes</span>
-    </article>
-    <article class="card p-3 kpi-card">
-      <p class="kpi-label">Stock bajo</p>
-      <h3 class="kpi-value">18</h3>
-      <span class="kpi-meta warning">Requiere reposición</span>
-    </article>
-    <article class="card p-3 kpi-card">
-      <p class="kpi-label">Entradas hoy</p>
-      <h3 class="kpi-value">34</h3>
-      <span class="kpi-meta success">6 proveedores</span>
-    </article>
-    <article class="card p-3 kpi-card">
-      <p class="kpi-label">Salidas hoy</p>
-      <h3 class="kpi-value">21</h3>
-      <span class="kpi-meta neutral">Sin incidencias</span>
-    </article>
+    @for (kpi of kpis; track kpi.label) {
+      <article class="card p-3 kpi-card">
+        <p class="kpi-label">{{ kpi.label }}</p>
+        <h3 class="kpi-value">{{ kpi.value }}</h3>
+        <span [class]="toneClass(kpi.tone)">{{ kpi.meta }}</span>
+      </article>
+    }
   </section>
 
   <section class="dashboard-grid">
     <article class="card p-3 p-md-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0 panel-title">Alertas de inventario</h5>
-        <span class="badge text-bg-danger">5 críticas</span>
+        <span class="badge text-bg-danger">{{ criticalAlertsCount }} críticas</span>
       </div>
 
       <div class="alert-list">
-        <div class="alert-row">
-          <div>
-            <p class="item-name">Cable USB-C 2m</p>
-            <small>SKU: TITI-USB-02</small>
+        @for (alert of alerts; track alert.sku) {
+          <div class="alert-row">
+            <div>
+              <p class="item-name">{{ alert.productName }}</p>
+              <small>SKU: {{ alert.sku }}</small>
+            </div>
+            <span [class]="alertBadgeClass(alert.state)">{{ alertLabel(alert.state) }}</span>
           </div>
-          <span class="badge text-bg-danger">Agotado</span>
-        </div>
-        <div class="alert-row">
-          <div>
-            <p class="item-name">Lámpara LED escritorio</p>
-            <small>SKU: TITI-HOG-15</small>
-          </div>
-          <span class="badge text-bg-warning">Stock bajo</span>
-        </div>
-        <div class="alert-row">
-          <div>
-            <p class="item-name">Audífonos Bluetooth</p>
-            <small>SKU: TITI-AUD-09</small>
-          </div>
-          <span class="badge text-bg-warning">Stock bajo</span>
-        </div>
+        }
       </div>
     </article>
 
@@ -83,27 +58,15 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><span class="badge text-bg-success">Entrada</span></td>
-              <td>Mouse inalámbrico</td>
-              <td>+20</td>
-              <td>María Soto</td>
-              <td>09:42</td>
-            </tr>
-            <tr>
-              <td><span class="badge text-bg-primary">Salida</span></td>
-              <td>Memoria USB 64GB</td>
-              <td>-8</td>
-              <td>Luis Peña</td>
-              <td>10:05</td>
-            </tr>
-            <tr>
-              <td><span class="badge text-bg-secondary">Ajuste</span></td>
-              <td>Parlante portátil</td>
-              <td>+3</td>
-              <td>Ana Ruiz</td>
-              <td>10:18</td>
-            </tr>
+            @for (movement of recentMovements; track movement.time + movement.productName) {
+              <tr>
+                <td><span [class]="movementBadgeClass(movement.type)">{{ movementLabel(movement.type) }}</span></td>
+                <td>{{ movement.productName }}</td>
+                <td>{{ movementQuantity(movement.type, movement.quantity) }}</td>
+                <td>{{ movement.userName }}</td>
+                <td>{{ movement.time }}</td>
+              </tr>
+            }
           </tbody>
         </table>
       </div>
