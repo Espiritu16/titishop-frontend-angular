@@ -11,6 +11,7 @@ interface MovementItem {
   type: MovementType;
   product: string;
   sku: string;
+  provider: string;
   quantity: number;
   reason: string;
   user: string;
@@ -30,6 +31,7 @@ interface ProductRef {
 const MOVEMENTS_KEY = 'titishop_movimientos';
 const STOCK_KEY = 'titishop_stock';
 const PRODUCTS_KEY = 'titishop_productos';
+const PROVIDERS_KEY = 'titishop_proveedores';
 
 @Component({
   selector: 'app-movements',
@@ -45,6 +47,7 @@ export class Movements {
   movements: MovementItem[] = [];
   stock: StockItem[] = [];
   productsRef: ProductRef[] = [];
+  providersRef: string[] = [];
   filteredProducts: ProductRef[] = [];
   showProductSuggestions = false;
 
@@ -60,9 +63,18 @@ export class Movements {
       type: ['ENTRADA' as MovementType, [Validators.required]],
       product: ['', [Validators.required, Validators.minLength(3)]],
       sku: ['', [Validators.required, Validators.minLength(3)]],
+      provider: [''],
       quantity: [0, [Validators.required, Validators.min(1)]],
       reason: ['', [Validators.required, Validators.minLength(4)]],
       user: [this.auth.session()?.fullName ?? 'Operador', [Validators.required, Validators.minLength(3)]],
+    });
+    this.movementForm.controls.type.valueChanges.subscribe((type) => {
+      if (type === 'ENTRADA') {
+        this.movementForm.controls.provider.enable({ emitEvent: false });
+      } else {
+        this.movementForm.controls.provider.setValue('', { emitEvent: false });
+        this.movementForm.controls.provider.disable({ emitEvent: false });
+      }
     });
     this.loadData();
   }
@@ -71,7 +83,8 @@ export class Movements {
     const value = this.movementForm.getRawValue();
     const hasValidReason = value.reason.trim().length >= 4;
     const hasValidQuantity = Number.isFinite(value.quantity) && value.quantity > 0;
-    return this.movementForm.valid && hasValidReason && hasValidQuantity;
+    const hasProvider = value.type !== 'ENTRADA' || !!value.provider.trim();
+    return this.movementForm.valid && hasValidReason && hasValidQuantity && hasProvider;
   }
 
   onProductInput(): void {
@@ -110,6 +123,7 @@ export class Movements {
       const value = this.movementForm.getRawValue();
       const sku = value.sku.trim().toUpperCase();
       const product = value.product.trim();
+      const provider = value.provider.trim();
       const reason = value.reason.trim();
       const quantity = value.quantity;
 
@@ -120,6 +134,10 @@ export class Movements {
 
       if (!Number.isFinite(quantity) || quantity <= 0) {
         this.feedback = 'Ingrese una cantidad mayor a cero.';
+        return;
+      }
+      if (value.type === 'ENTRADA' && !provider) {
+        this.feedback = 'Seleccione un proveedor para registrar una entrada.';
         return;
       }
 
@@ -156,6 +174,7 @@ export class Movements {
         type: value.type,
         product,
         sku,
+        provider,
         quantity,
         reason,
         user: value.user.trim(),
@@ -168,6 +187,7 @@ export class Movements {
         type: 'ENTRADA',
         product: '',
         sku: '',
+        provider: '',
         quantity: 0,
         reason: '',
         user: this.auth.session()?.fullName ?? 'Operador',
@@ -218,6 +238,15 @@ export class Movements {
         .map((item) => ({ sku: item.sku, name: item.name }));
     } catch {
       this.productsRef = [];
+    }
+
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? '[]') as Array<{ businessName: string; status?: string }>;
+      this.providersRef = parsed
+        .filter((item) => !!item?.businessName && (item.status ?? 'ACTIVO') === 'ACTIVO')
+        .map((item) => item.businessName);
+    } catch {
+      this.providersRef = [];
     }
   }
 
