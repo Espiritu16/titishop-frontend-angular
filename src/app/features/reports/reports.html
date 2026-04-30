@@ -71,8 +71,10 @@
             <th>Fecha</th>
             <th>Tipo</th>
             <th>Producto</th>
+            <th>SKU</th>
             <th>Proveedor</th>
             <th>Cantidad</th>
+            <th>Motivo</th>
             <th>Usuario</th>
           </tr>
         </thead>
@@ -82,8 +84,10 @@
               <td>{{ movement.date | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td><span [class]="movementBadgeClass(movement.type)">{{ movement.type }}</span></td>
               <td>{{ movement.product }}</td>
+              <td>{{ movement.sku }}</td>
               <td>{{ movement.provider }}</td>
               <td>{{ movement.quantity }}</td>
+              <td>{{ movement.reason }}</td>
               <td>{{ movement.user }}</td>
             </tr>
           }
