@@ -9,10 +9,16 @@ interface ReportMovement {
   date: string;
   type: MovementType;
   product: string;
+  sku: string;
   provider: string;
   quantity: number;
+  reason: string;
   user: string;
 }
+
+const MOVEMENTS_KEY = 'titishop_movimientos';
+const PRODUCTS_KEY = 'titishop_productos';
+const PROVIDERS_KEY = 'titishop_proveedores';
 
 @Component({
   selector: 'app-reports',
@@ -22,18 +28,13 @@ interface ReportMovement {
 })
 export class Reports {
   readonly movementTypes: Array<MovementType | 'TODOS'> = ['TODOS', 'ENTRADA', 'SALIDA', 'AJUSTE'];
-  readonly providers = ['Todos', 'Nova Import', 'Andes Supply', 'Global Tech'];
-  readonly products = ['Todos', 'Mouse inalámbrico', 'Cable USB-C 2m', 'Lámpara LED escritorio', 'Memoria USB 64GB'];
+  providers: string[] = ['Todos'];
+  products: string[] = ['Todos'];
+  filteredProducts: string[] = [];
+  showProductSuggestions = false;
 
   readonly filterForm;
-
-  readonly allMovements: ReportMovement[] = [
-    { id: 'm1', date: '2026-04-27T09:20:00', type: 'ENTRADA', product: 'Mouse inalámbrico', provider: 'Nova Import', quantity: 25, user: 'María Soto' },
-    { id: 'm2', date: '2026-04-27T11:10:00', type: 'SALIDA', product: 'Memoria USB 64GB', provider: 'Global Tech', quantity: 10, user: 'Luis Peña' },
-    { id: 'm3', date: '2026-04-28T08:42:00', type: 'ENTRADA', product: 'Cable USB-C 2m', provider: 'Andes Supply', quantity: 40, user: 'Ana Ruiz' },
-    { id: 'm4', date: '2026-04-28T14:35:00', type: 'AJUSTE', product: 'Lámpara LED escritorio', provider: 'Nova Import', quantity: 3, user: 'María Soto' },
-    { id: 'm5', date: '2026-04-29T10:03:00', type: 'SALIDA', product: 'Mouse inalámbrico', provider: 'Nova Import', quantity: 6, user: 'Luis Peña' },
-  ];
+  allMovements: ReportMovement[] = [];
 
   constructor(private fb: FormBuilder) {
     this.filterForm = this.fb.nonNullable.group({
@@ -41,8 +42,9 @@ export class Reports {
       toDate: [''],
       type: ['TODOS' as MovementType | 'TODOS'],
       provider: ['Todos'],
-      product: ['Todos'],
+      product: [''],
     });
+    this.loadMovements();
   }
 
   get filteredMovements(): ReportMovement[] {
@@ -56,7 +58,8 @@ export class Reports {
       if (to && movementDate > to) return false;
       if (type !== 'TODOS' && movement.type !== type) return false;
       if (provider !== 'Todos' && movement.provider !== provider) return false;
-      if (product !== 'Todos' && movement.product !== product) return false;
+      const normalizedProduct = product.trim().toLowerCase();
+      if (normalizedProduct && normalizedProduct !== 'todos' && movement.product.toLowerCase() !== normalizedProduct) return false;
       return true;
     });
   }
@@ -79,13 +82,80 @@ export class Reports {
       toDate: '',
       type: 'TODOS',
       provider: 'Todos',
-      product: 'Todos',
+      product: '',
     });
+    this.filteredProducts = [...this.products];
+    this.showProductSuggestions = false;
   }
 
   movementBadgeClass(type: MovementType): string {
     if (type === 'ENTRADA') return 'badge text-bg-success';
     if (type === 'SALIDA') return 'badge text-bg-primary';
     return 'badge text-bg-secondary';
+  }
+
+  private loadMovements(): void {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(MOVEMENTS_KEY) ?? '[]') as Array<Partial<ReportMovement>>;
+      this.allMovements = Array.isArray(parsed)
+        ? parsed.map((item) => ({
+            id: item.id ?? crypto.randomUUID(),
+            date: item.date ?? new Date().toISOString(),
+            type: (item.type as MovementType) ?? 'ENTRADA',
+            product: item.product ?? '',
+            sku: item.sku ?? '',
+            provider: item.provider ?? '-',
+            quantity: Number(item.quantity ?? 0),
+            reason: item.reason ?? '',
+            user: item.user ?? '',
+          }))
+        : [];
+    } catch {
+      this.allMovements = [];
+    }
+
+    const productsSet = new Set(this.allMovements.map((item) => item.product).filter(Boolean));
+    const providersSet = new Set(this.allMovements.map((item) => item.provider).filter((p) => !!p && p !== '-'));
+
+    try {
+      const catalogProducts = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ name?: string }>;
+      catalogProducts.forEach((product) => {
+        if (product?.name?.trim()) productsSet.add(product.name.trim());
+      });
+    } catch {}
+
+    try {
+      const catalogProviders = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? '[]') as Array<{ businessName?: string; status?: string }>;
+      catalogProviders.forEach((provider) => {
+        if ((provider?.status ?? 'ACTIVO') === 'ACTIVO' && provider?.businessName?.trim()) {
+          providersSet.add(provider.businessName.trim());
+        }
+      });
+    } catch {}
+
+    this.products = ['Todos', ...Array.from(productsSet).sort((a, b) => a.localeCompare(b))];
+    this.providers = ['Todos', ...Array.from(providersSet).sort((a, b) => a.localeCompare(b))];
+    this.filteredProducts = [...this.products];
+  }
+
+  onProductFilterInput(): void {
+    const query = this.filterForm.controls.product.value.trim().toLowerCase();
+    if (!query) {
+      this.filteredProducts = [...this.products];
+      this.showProductSuggestions = true;
+      return;
+    }
+    this.filteredProducts = this.products.filter((item) => item.toLowerCase().includes(query));
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  onProductFilterFocus(): void {
+    this.filteredProducts = [...this.products];
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  selectProductFilter(product: string): void {
+    this.filterForm.patchValue({ product });
+    this.showProductSuggestions = false;
   }
 }

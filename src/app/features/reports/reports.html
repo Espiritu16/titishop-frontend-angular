@@ -35,11 +35,26 @@
       </div>
       <div class="col-12 col-md-3">
         <label class="form-label">Producto</label>
-        <select class="form-select" formControlName="product">
-          @for (item of products; track item) {
-            <option [value]="item">{{ item }}</option>
+        <div class="position-relative">
+          <input
+            type="text"
+            class="form-control"
+            formControlName="product"
+            placeholder="Buscar producto"
+            autocomplete="off"
+            (focus)="onProductFilterFocus()"
+            (input)="onProductFilterInput()"
+          />
+          @if (showProductSuggestions) {
+            <div class="product-suggestions shadow-sm">
+              @for (item of filteredProducts; track item) {
+                <button type="button" class="suggestion-item" (click)="selectProductFilter(item)">
+                  {{ item }}
+                </button>
+              }
+            </div>
           }
-        </select>
+        </div>
       </div>
     </form>
   </article>
@@ -71,21 +86,33 @@
             <th>Fecha</th>
             <th>Tipo</th>
             <th>Producto</th>
+            <th>SKU</th>
             <th>Proveedor</th>
             <th>Cantidad</th>
+            <th>Motivo</th>
             <th>Usuario</th>
           </tr>
         </thead>
         <tbody>
-          @for (movement of filteredMovements; track movement.id) {
+          @if (filteredMovements.length === 0) {
             <tr>
-              <td>{{ movement.date | date: 'dd/MM/yyyy HH:mm' }}</td>
-              <td><span [class]="movementBadgeClass(movement.type)">{{ movement.type }}</span></td>
-              <td>{{ movement.product }}</td>
-              <td>{{ movement.provider }}</td>
-              <td>{{ movement.quantity }}</td>
-              <td>{{ movement.user }}</td>
+              <td colspan="8" class="text-center text-secondary py-4">
+                No hay movimientos para los filtros seleccionados.
+              </td>
             </tr>
+          } @else {
+            @for (movement of filteredMovements; track movement.id) {
+              <tr>
+                <td>{{ movement.date | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td><span [class]="movementBadgeClass(movement.type)">{{ movement.type }}</span></td>
+                <td>{{ movement.product }}</td>
+                <td>{{ movement.sku }}</td>
+                <td>{{ movement.provider }}</td>
+                <td>{{ movement.quantity }}</td>
+                <td>{{ movement.reason }}</td>
+                <td>{{ movement.user }}</td>
+              </tr>
+            }
           }
         </tbody>
       </table>
