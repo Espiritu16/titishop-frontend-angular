@@ -15,6 +15,12 @@ interface InventoryItem {
   updatedAt: string;
 }
 
+interface ProductRef {
+  sku: string;
+  name: string;
+  category: string;
+}
+
 const INVENTORY_KEY = 'titishop_inventario';
 const PRODUCTS_KEY = 'titishop_productos';
 const STOCK_KEY = 'titishop_stock';
@@ -139,7 +145,8 @@ export class Inventory {
   }
 
   private loadInventory(): void {
-    const productMap = this.readProductMap();
+    const products = this.readProducts();
+    const productMap = new Map(products.map((p) => [p.sku, { name: p.name, category: p.category }]));
     const stockMap = this.readStockMap();
     const raw = localStorage.getItem(INVENTORY_KEY);
     const baseInventory = this.seedInventory();
@@ -154,7 +161,7 @@ export class Inventory {
       const parsed = JSON.parse(raw) as InventoryItem[];
       const fromStorage = Array.isArray(parsed) ? parsed : baseInventory;
 
-      this.inventory = fromStorage.map((item) => {
+      const mapped = fromStorage.map((item) => {
         const product = productMap.get(item.sku);
         const stock = stockMap.get(item.sku) ?? item.stock;
         return {
@@ -164,6 +171,21 @@ export class Inventory {
           stock,
         };
       });
+
+      const missingProducts = products
+        .filter((product) => !mapped.some((item) => item.sku === product.sku))
+        .map((product) => ({
+          id: crypto.randomUUID(),
+          product: product.name,
+          sku: product.sku,
+          category: product.category,
+          stock: stockMap.get(product.sku) ?? 0,
+          minStock: 0,
+          location: '',
+          updatedAt: new Date().toISOString(),
+        }));
+
+      this.inventory = [...mapped, ...missingProducts];
     } catch {
       this.inventory = baseInventory;
     }
@@ -174,7 +196,8 @@ export class Inventory {
   }
 
   private seedInventory(): InventoryItem[] {
-    const productMap = this.readProductMap();
+    const products = this.readProducts();
+    const productMap = new Map(products.map((p) => [p.sku, { name: p.name, category: p.category }]));
     const stockMap = this.readStockMap();
     return [
       {
@@ -200,17 +223,18 @@ export class Inventory {
     ];
   }
 
-  private readProductMap(): Map<string, { name: string; category: string }> {
+  private readProducts(): ProductRef[] {
     try {
       const parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ sku: string; name: string; category: string }>;
-      const map = new Map<string, { name: string; category: string }>();
-      parsed.forEach((item) => {
-        if (!item?.sku) return;
-        map.set(item.sku, { name: item.name, category: item.category });
-      });
-      return map;
+      return parsed
+        .filter((item) => !!item?.sku && !!item?.name)
+        .map((item) => ({
+          sku: item.sku,
+          name: item.name,
+          category: item.category ?? '',
+        }));
     } catch {
-      return new Map<string, { name: string; category: string }>();
+      return [];
     }
   }
 
