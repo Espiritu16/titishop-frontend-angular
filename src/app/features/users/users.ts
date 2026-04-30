@@ -42,6 +42,10 @@ export class Users {
     this.loadUsers();
   }
 
+  get canSubmit(): boolean {
+    return this.userForm.valid;
+  }
+
   saveUser(): void {
     if (this.userForm.invalid) {
       this.userForm.markAllAsTouched();

@@ -8,7 +8,7 @@
       @if (editingUserId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveUser()">
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveUser()" [disabled]="!canSubmit">
         {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
       </button>
     </div>
