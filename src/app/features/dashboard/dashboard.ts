@@ -26,6 +26,9 @@ interface RecentMovement {
 }
 
 interface ProductRecord {
+  sku?: string;
+  name?: string;
+  category?: string;
   status?: 'ACTIVO' | 'INACTIVO';
 }
 
@@ -46,6 +49,7 @@ interface MovementRecord {
 const PRODUCTS_KEY = 'titishop_productos';
 const STOCK_KEY = 'titishop_stock';
 const MOVEMENTS_KEY = 'titishop_movimientos';
+const INVENTORY_KEY = 'titishop_inventario';
 
 @Component({
   selector: 'app-dashboard',
@@ -97,6 +101,7 @@ export class Dashboard {
   private loadDashboardData(): void {
     const products = this.readArray<ProductRecord>(PRODUCTS_KEY);
     const stock = this.readArray<StockRecord>(STOCK_KEY);
+    const inventoryCfg = this.readArray<Array<{ sku?: string; minStock?: number }>[number]>(INVENTORY_KEY);
     const movements = this.readArray<MovementRecord>(MOVEMENTS_KEY);
     const now = new Date();
     const sameDay = (iso: string) => {
@@ -105,7 +110,19 @@ export class Dashboard {
     };
 
     const activeProducts = products.filter((p) => (p.status ?? 'ACTIVO') === 'ACTIVO').length;
-    const lowStock = stock.filter((s) => s.stock > 0 && s.stock <= 10).length;
+    const stockBySku = new Map(stock.map((s) => [s.sku, s.stock]));
+    const minBySku = new Map(inventoryCfg.map((i) => [i.sku ?? '', Number.isFinite(i.minStock as number) ? (i.minStock as number) : 10]));
+
+    const consolidated = products
+      .filter((p) => (p.status ?? 'ACTIVO') === 'ACTIVO' && !!p.sku && !!p.name)
+      .map((p) => {
+        const sku = p.sku as string;
+        const currentStock = stockBySku.get(sku) ?? 0;
+        const minStock = minBySku.get(sku) ?? 10;
+        return { sku, product: p.name as string, stock: currentStock, minStock };
+      });
+
+    const lowStock = consolidated.filter((s) => s.stock > 0 && s.stock <= s.minStock).length;
     const entradasHoy = movements.filter((m) => m.type === 'ENTRADA' && sameDay(m.createdAt)).length;
     const salidasHoy = movements.filter((m) => m.type === 'SALIDA' && sameDay(m.createdAt)).length;
 
@@ -116,8 +133,8 @@ export class Dashboard {
       { label: 'Salidas hoy', value: salidasHoy, meta: 'Movimientos del día', tone: 'neutral' },
     ];
 
-    this.alerts = stock
-      .filter((s) => s.stock <= 10)
+    this.alerts = consolidated
+      .filter((s) => s.stock <= s.minStock)
       .slice(0, 6)
       .map((s) => ({
         productName: s.product,
