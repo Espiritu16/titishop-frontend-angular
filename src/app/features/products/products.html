@@ -8,9 +8,6 @@
       @if (editingId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveProduct()" [disabled]="!canSubmit">
-        {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
-      </button>
     </div>
   </header>
 
@@ -32,6 +29,20 @@
             <option [value]="category">{{ category }}</option>
           }
         </select>
+        <div class="input-group input-group-sm mt-2">
+          <input
+            class="form-control"
+            type="text"
+            [(ngModel)]="newCategory"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nueva categoría"
+            (input)="onCategoryInput($event)"
+          />
+          <button type="button" class="btn btn-primary" (click)="addCategory()" [disabled]="!newCategory.trim()">Agregar</button>
+        </div>
+        @if (categoryError) {
+          <small class="text-danger d-block mt-1">{{ categoryError }}</small>
+        }
       </div>
       <div class="col-12 col-md-3">
         <label class="form-label">Marca</label>
@@ -40,6 +51,20 @@
             <option [value]="brand">{{ brand }}</option>
           }
         </select>
+        <div class="input-group input-group-sm mt-2">
+          <input
+            class="form-control"
+            type="text"
+            [(ngModel)]="newBrand"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nueva marca"
+            (input)="onBrandInput($event)"
+          />
+          <button type="button" class="btn btn-primary" (click)="addBrand()" [disabled]="!newBrand.trim()">Agregar</button>
+        </div>
+        @if (brandError) {
+          <small class="text-danger d-block mt-1">{{ brandError }}</small>
+        }
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Precio compra</label>
@@ -62,6 +87,11 @@
           placeholder="0.00"
           (keydown)="blockInvalidNumberKeys($event)"
         />
+      </div>
+      <div class="col-12 col-md-4 d-flex align-items-end">
+        <button type="button" class="btn btn-primary w-100" (click)="saveProduct()" [disabled]="!canSubmit">
+          {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
+        </button>
       </div>
     </form>
     <p class="small text-secondary mb-0 mt-3">El stock se gestiona desde Movimientos e Inventario.</p>

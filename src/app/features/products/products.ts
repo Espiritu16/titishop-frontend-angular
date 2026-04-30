@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 
 type ProductStatus = 'ACTIVO' | 'INACTIVO';
 
@@ -20,7 +20,7 @@ const PRODUCTS_KEY = 'titishop_productos';
 
 @Component({
   selector: 'app-products',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './products.html',
   styleUrl: './products.scss',
 })
@@ -29,8 +29,12 @@ export class Products {
   editingId: string | null = null;
   products: ProductItem[] = [];
 
-  readonly categories = ['Accesorios', 'Tecnología', 'Hogar', 'Oficina'];
-  readonly brands = ['TitiHome', 'NovaTech', 'Andes', 'Genérico'];
+  categories = ['Accesorios', 'Tecnología', 'Hogar', 'Oficina'];
+  brands = ['TitiHome', 'NovaTech', 'Andes', 'Genérico'];
+  newCategory = '';
+  newBrand = '';
+  categoryError = '';
+  brandError = '';
 
   readonly productForm;
 
@@ -55,6 +59,56 @@ export class Products {
     if (['e', 'E', '+', '-'].includes(event.key)) {
       event.preventDefault();
     }
+  }
+
+  addCategory(): void {
+    this.categoryError = '';
+    const normalized = this.normalizeCatalogName(this.newCategory);
+    if (!normalized) {
+      this.categoryError = 'Solo letras y espacios.';
+      return;
+    }
+    if (this.categories.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      this.categoryError = 'La categoría ya existe.';
+      return;
+    }
+    this.categories = [...this.categories, normalized];
+    this.productForm.patchValue({ category: normalized });
+    this.newCategory = '';
+    this.feedback = 'Categoría agregada.';
+  }
+
+  addBrand(): void {
+    this.brandError = '';
+    const normalized = this.normalizeCatalogName(this.newBrand);
+    if (!normalized) {
+      this.brandError = 'Solo letras y espacios.';
+      return;
+    }
+    if (this.brands.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      this.brandError = 'La marca ya existe.';
+      return;
+    }
+    this.brands = [...this.brands, normalized];
+    this.productForm.patchValue({ brand: normalized });
+    this.newBrand = '';
+    this.feedback = 'Marca agregada.';
+  }
+
+  onCategoryInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.newCategory = sanitized;
+    this.categoryError = '';
+  }
+
+  onBrandInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.newBrand = sanitized;
+    this.brandError = '';
   }
 
   saveProduct(): void {
@@ -219,5 +273,12 @@ export class Products {
         createdAt: new Date().toISOString(),
       },
     ];
+  }
+
+  private normalizeCatalogName(value: string): string {
+    const normalized = value.trim().replace(/\s+/g, ' ');
+    if (!normalized) return '';
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(normalized)) return '';
+    return normalized;
   }
 }
