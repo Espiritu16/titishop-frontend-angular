@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AuthService } from '../../core/auth.service';
 
 type MovementType = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
 
@@ -21,8 +22,14 @@ interface StockItem {
   stock: number;
 }
 
+interface ProductRef {
+  sku: string;
+  name: string;
+}
+
 const MOVEMENTS_KEY = 'titishop_movimientos';
 const STOCK_KEY = 'titishop_stock';
+const PRODUCTS_KEY = 'titishop_productos';
 
 @Component({
   selector: 'app-movements',
@@ -37,21 +44,46 @@ export class Movements {
 
   movements: MovementItem[] = [];
   stock: StockItem[] = [];
+  productsRef: ProductRef[] = [];
+  filteredProducts: ProductRef[] = [];
+  showProductSuggestions = false;
 
   readonly movementTypes: MovementType[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
 
   readonly movementForm;
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    public auth: AuthService
+  ) {
     this.movementForm = this.fb.nonNullable.group({
       type: ['ENTRADA' as MovementType, [Validators.required]],
       product: ['', [Validators.required, Validators.minLength(3)]],
       sku: ['', [Validators.required, Validators.minLength(3)]],
       quantity: [0, [Validators.required, Validators.min(1)]],
       reason: ['', [Validators.required, Validators.minLength(4)]],
-      user: ['Operador', [Validators.required, Validators.minLength(3)]],
+      user: [this.auth.session()?.fullName ?? 'Operador', [Validators.required, Validators.minLength(3)]],
     });
     this.loadData();
+  }
+
+  onProductInput(): void {
+    const query = this.movementForm.controls.product.value.trim().toLowerCase();
+    if (!query) {
+      this.filteredProducts = [];
+      this.showProductSuggestions = false;
+      return;
+    }
+    this.filteredProducts = this.productsRef.filter((item) => item.name.toLowerCase().includes(query)).slice(0, 8);
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  selectProduct(product: ProductRef): void {
+    this.movementForm.patchValue({
+      product: product.name,
+      sku: product.sku,
+    });
+    this.showProductSuggestions = false;
   }
 
   submitMovement(): void {
@@ -111,6 +143,7 @@ export class Movements {
       this.movementForm.patchValue({
         quantity: 0,
         reason: '',
+        user: this.auth.session()?.fullName ?? 'Operador',
       });
     } finally {
       this.isSubmitting = false;
@@ -147,6 +180,15 @@ export class Movements {
       this.persistData();
     } catch {
       this.stock = [];
+    }
+
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ sku: string; name: string }>;
+      this.productsRef = parsed
+        .filter((item) => !!item?.sku && !!item?.name)
+        .map((item) => ({ sku: item.sku, name: item.name }));
+    } catch {
+      this.productsRef = [];
     }
   }
 

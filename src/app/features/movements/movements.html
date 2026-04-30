@@ -27,11 +27,23 @@
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Producto</label>
-        <input class="form-control" type="text" formControlName="product" placeholder="Nombre del producto" />
+        <div class="position-relative">
+          <input class="form-control" type="text" formControlName="product" placeholder="Buscar producto" (input)="onProductInput()" />
+          @if (showProductSuggestions) {
+            <div class="product-suggestions shadow-sm">
+              @for (product of filteredProducts; track product.sku) {
+                <button type="button" class="suggestion-item" (click)="selectProduct(product)">
+                  <span class="suggestion-name">{{ product.name }}</span>
+                  <small class="suggestion-sku">{{ product.sku }}</small>
+                </button>
+              }
+            </div>
+          }
+        </div>
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">SKU</label>
-        <input class="form-control text-uppercase" type="text" formControlName="sku" placeholder="TITI-001" />
+        <input class="form-control text-uppercase" type="text" formControlName="sku" readonly />
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">Cantidad</label>
@@ -52,7 +64,7 @@
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label">Usuario</label>
-        <input class="form-control" type="text" formControlName="user" placeholder="Nombre del operador" />
+        <input class="form-control" type="text" formControlName="user" readonly />
       </div>
     </form>
   </article>
