@@ -44,8 +44,8 @@ export class Products {
       sku: ['', [Validators.required, Validators.minLength(3)]],
       category: [this.categories[0], [Validators.required]],
       brand: [this.brands[0], [Validators.required]],
-      purchasePrice: [null as number | null, [Validators.required, Validators.min(0)]],
-      salePrice: [null as number | null, [Validators.required, Validators.min(0)]],
+      purchasePrice: [null as number | null, [Validators.min(0)]],
+      salePrice: [null as number | null, [Validators.min(0)]],
     });
     this.loadProducts();
   }
@@ -132,22 +132,12 @@ export class Products {
       return;
     }
 
-    if (value.purchasePrice === null || value.salePrice === null) {
-      this.feedback = 'Ingrese precios válidos.';
-      return;
-    }
-
-    const purchasePrice = value.purchasePrice;
-    const salePrice = value.salePrice;
+    const purchasePrice = value.purchasePrice ?? 0;
+    const salePrice = value.salePrice ?? 0;
 
     const skuExists = this.products.some((p) => p.sku === normalizedSku && p.id !== this.editingId);
     if (skuExists) {
       this.feedback = 'El SKU ya existe.';
-      return;
-    }
-
-    if (salePrice < purchasePrice) {
-      this.feedback = 'El precio de venta no puede ser menor al de compra.';
       return;
     }
 
