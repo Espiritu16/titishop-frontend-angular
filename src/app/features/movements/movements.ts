@@ -103,15 +103,16 @@ export class Movements {
       const value = this.movementForm.getRawValue();
       const sku = value.sku.trim().toUpperCase();
       const product = value.product.trim();
-      const existingStock = this.stock.find((item) => item.sku === sku);
-
-      if (!existingStock) {
-        this.stock.push({ sku, product, stock: 0 });
-      } else {
-        existingStock.product = product;
+      const productExists = this.productsRef.some((item) => item.sku === sku && item.name.toLowerCase() === product.toLowerCase());
+      if (!productExists) {
+        this.feedback = 'Seleccione un producto válido del listado.';
+        return;
       }
 
-      const stockItem = this.stock.find((item) => item.sku === sku)!;
+      const existingStock = this.stock.find((item) => item.sku === sku);
+      if (existingStock) existingStock.product = product;
+
+      const stockItem = this.stock.find((item) => item.sku === sku) ?? { sku, product, stock: 0 };
 
       if (value.type === 'SALIDA' && stockItem.stock < value.quantity) {
         this.feedback = `Stock insuficiente. Disponible: ${stockItem.stock}.`;
