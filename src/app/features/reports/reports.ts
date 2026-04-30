@@ -17,6 +17,8 @@ interface ReportMovement {
 }
 
 const MOVEMENTS_KEY = 'titishop_movimientos';
+const PRODUCTS_KEY = 'titishop_productos';
+const PROVIDERS_KEY = 'titishop_proveedores';
 
 @Component({
   selector: 'app-reports',
@@ -28,6 +30,8 @@ export class Reports {
   readonly movementTypes: Array<MovementType | 'TODOS'> = ['TODOS', 'ENTRADA', 'SALIDA', 'AJUSTE'];
   providers: string[] = ['Todos'];
   products: string[] = ['Todos'];
+  filteredProducts: string[] = [];
+  showProductSuggestions = false;
 
   readonly filterForm;
   allMovements: ReportMovement[] = [];
@@ -38,7 +42,7 @@ export class Reports {
       toDate: [''],
       type: ['TODOS' as MovementType | 'TODOS'],
       provider: ['Todos'],
-      product: ['Todos'],
+      product: [''],
     });
     this.loadMovements();
   }
@@ -54,7 +58,8 @@ export class Reports {
       if (to && movementDate > to) return false;
       if (type !== 'TODOS' && movement.type !== type) return false;
       if (provider !== 'Todos' && movement.provider !== provider) return false;
-      if (product !== 'Todos' && movement.product !== product) return false;
+      const normalizedProduct = product.trim().toLowerCase();
+      if (normalizedProduct && normalizedProduct !== 'todos' && movement.product.toLowerCase() !== normalizedProduct) return false;
       return true;
     });
   }
@@ -77,8 +82,10 @@ export class Reports {
       toDate: '',
       type: 'TODOS',
       provider: 'Todos',
-      product: 'Todos',
+      product: '',
     });
+    this.filteredProducts = [...this.products];
+    this.showProductSuggestions = false;
   }
 
   movementBadgeClass(type: MovementType): string {
@@ -109,7 +116,46 @@ export class Reports {
 
     const productsSet = new Set(this.allMovements.map((item) => item.product).filter(Boolean));
     const providersSet = new Set(this.allMovements.map((item) => item.provider).filter((p) => !!p && p !== '-'));
+
+    try {
+      const catalogProducts = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ name?: string }>;
+      catalogProducts.forEach((product) => {
+        if (product?.name?.trim()) productsSet.add(product.name.trim());
+      });
+    } catch {}
+
+    try {
+      const catalogProviders = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? '[]') as Array<{ businessName?: string; status?: string }>;
+      catalogProviders.forEach((provider) => {
+        if ((provider?.status ?? 'ACTIVO') === 'ACTIVO' && provider?.businessName?.trim()) {
+          providersSet.add(provider.businessName.trim());
+        }
+      });
+    } catch {}
+
     this.products = ['Todos', ...Array.from(productsSet).sort((a, b) => a.localeCompare(b))];
     this.providers = ['Todos', ...Array.from(providersSet).sort((a, b) => a.localeCompare(b))];
+    this.filteredProducts = [...this.products];
+  }
+
+  onProductFilterInput(): void {
+    const query = this.filterForm.controls.product.value.trim().toLowerCase();
+    if (!query) {
+      this.filteredProducts = [...this.products];
+      this.showProductSuggestions = true;
+      return;
+    }
+    this.filteredProducts = this.products.filter((item) => item.toLowerCase().includes(query));
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  onProductFilterFocus(): void {
+    this.filteredProducts = [...this.products];
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  selectProductFilter(product: string): void {
+    this.filterForm.patchValue({ product });
+    this.showProductSuggestions = false;
   }
 }
