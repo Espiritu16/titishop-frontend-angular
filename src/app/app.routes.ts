@@ -3,6 +3,7 @@ import { AppShell } from './features/layout/app-shell/app-shell';
 import { Login } from './features/login/login';
 import { Dashboard } from './features/dashboard/dashboard';
 import { Products } from './features/products/products';
+import { Providers } from './features/providers/providers';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -12,6 +13,7 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', component: Dashboard },
       { path: 'productos', component: Products },
+      { path: 'proveedores', component: Providers },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
