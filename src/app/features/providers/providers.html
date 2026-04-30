@@ -8,9 +8,6 @@
       @if (editingId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveProvider()">
-        {{ editingId ? 'Guardar cambios' : 'Registrar proveedor' }}
-      </button>
     </div>
   </header>
 
@@ -23,23 +20,64 @@
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">RUC</label>
-        <input class="form-control" type="text" maxlength="11" formControlName="ruc" placeholder="11 dígitos" />
+        <input
+          class="form-control"
+          type="text"
+          maxlength="11"
+          inputmode="numeric"
+          formControlName="ruc"
+          placeholder="11 dígitos"
+          (input)="onRucInput($event)"
+        />
       </div>
       <div class="col-12 col-md-3">
-        <label class="form-label">Contacto</label>
-        <input class="form-control" type="text" formControlName="contact" placeholder="Nombre de contacto" />
+        <label class="form-label">Celular</label>
+        <input
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          maxlength="9"
+          formControlName="contact"
+          placeholder="9 dígitos"
+          (input)="onContactInput($event)"
+        />
       </div>
       <div class="col-12 col-md-3">
         <label class="form-label">Teléfono</label>
-        <input class="form-control" type="text" formControlName="phone" placeholder="Número de contacto" />
+        <input
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          maxlength="9"
+          formControlName="phone"
+          placeholder="Número de contacto"
+          (input)="onPhoneInput($event)"
+        />
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Correo</label>
-        <input class="form-control" type="email" formControlName="email" placeholder="correo@empresa.pe" />
+        <input
+          class="form-control"
+          type="email"
+          formControlName="email"
+          placeholder="correo@empresa.pe"
+          (input)="onEmailInput($event)"
+        />
       </div>
-      <div class="col-12 col-md-8">
+      <div class="col-12 col-md-5">
         <label class="form-label">Dirección</label>
-        <input class="form-control" type="text" formControlName="address" placeholder="Dirección principal" />
+        <input
+          class="form-control"
+          type="text"
+          formControlName="address"
+          placeholder="Dirección principal"
+          (input)="onAddressInput($event)"
+        />
+      </div>
+      <div class="col-12 col-md-3 d-flex align-items-end justify-content-md-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="!canSubmit()" (click)="saveProvider()">
+          {{ isSubmitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar proveedor' }}
+        </button>
       </div>
     </form>
   </article>
@@ -55,7 +93,7 @@
           <tr>
             <th>Razón social</th>
             <th>RUC</th>
-            <th>Contacto</th>
+            <th>Celular</th>
             <th>Correo</th>
             <th>Teléfono</th>
             <th>Estado</th>
@@ -83,7 +121,6 @@
                   >
                     {{ item.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
                   </button>
-                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeProvider(item.id)">Eliminar</button>
                 </div>
               </td>
             </tr>
