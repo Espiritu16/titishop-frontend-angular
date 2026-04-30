@@ -38,6 +38,7 @@ export class Users {
       fullName: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/)]],
       email: ['', [Validators.required, Validators.email]],
       role: ['ALMACENERO' as UserRole, [Validators.required]],
+      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(32)]],
     });
     this.loadUsers();
   }
@@ -56,6 +57,7 @@ export class Users {
     const formValue = this.userForm.getRawValue();
     const normalizedName = formValue.fullName.trim().replace(/\s+/g, ' ');
     const normalizedEmail = formValue.email.trim().toLowerCase();
+    const normalizedPassword = formValue.password.trim();
 
     if (!this.namePattern.test(normalizedName)) {
       this.feedback = 'El nombre solo puede contener letras y espacios.';
@@ -65,6 +67,11 @@ export class Users {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailPattern.test(normalizedEmail)) {
       this.feedback = 'Ingrese un correo electrónico válido.';
+      return;
+    }
+
+    if (!this.editingUserId && normalizedPassword.length < 6) {
+      this.feedback = 'La contraseña debe tener al menos 6 caracteres.';
       return;
     }
 
@@ -85,6 +92,7 @@ export class Users {
               fullName: normalizedName,
               email: normalizedEmail,
               role: formValue.role,
+              password: normalizedPassword ? normalizedPassword : user.password,
             }
           : user
       );
@@ -96,7 +104,7 @@ export class Users {
         email: normalizedEmail,
         role: formValue.role,
         status: 'ACTIVO',
-        password: DEFAULT_PASSWORD,
+        password: normalizedPassword,
         createdAt: new Date().toISOString(),
       };
       this.users = [newUser, ...this.users];
@@ -113,7 +121,11 @@ export class Users {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      password: '',
     });
+    this.userForm.controls.password.clearValidators();
+    this.userForm.controls.password.setValidators([Validators.minLength(6), Validators.maxLength(32)]);
+    this.userForm.controls.password.updateValueAndValidity();
     this.feedback = `Editando a ${user.fullName}.`;
   }
 
@@ -123,7 +135,10 @@ export class Users {
       fullName: '',
       email: '',
       role: 'ALMACENERO',
+      password: '',
     });
+    this.userForm.controls.password.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(32)]);
+    this.userForm.controls.password.updateValueAndValidity();
   }
 
   toggleStatus(userId: string): void {
