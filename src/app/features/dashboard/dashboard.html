@@ -1,0 +1,75 @@
+<section class="dashboard-page app-page">
+  <header class="section-head">
+    <div>
+      <h1 class="page-title">Panel de control</h1>
+      <p class="page-subtitle">Resumen operativo de inventario y movimientos de hoy.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-primary btn-sm">Ver reportes</button>
+      <button type="button" class="btn btn-primary btn-sm">Registrar movimiento</button>
+    </div>
+  </header>
+
+  <section class="kpi-grid">
+    @for (kpi of kpis; track kpi.label) {
+      <article class="card p-3 kpi-card">
+        <p class="kpi-label">{{ kpi.label }}</p>
+        <h3 class="kpi-value">{{ kpi.value }}</h3>
+        <span [class]="toneClass(kpi.tone)">{{ kpi.meta }}</span>
+      </article>
+    }
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="card p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 panel-title">Alertas de inventario</h5>
+        <span class="badge text-bg-danger">{{ criticalAlertsCount }} críticas</span>
+      </div>
+
+      <div class="alert-list">
+        @for (alert of alerts; track alert.sku) {
+          <div class="alert-row">
+            <div>
+              <p class="item-name">{{ alert.productName }}</p>
+              <small>SKU: {{ alert.sku }}</small>
+            </div>
+            <span [class]="alertBadgeClass(alert.state)">{{ alertLabel(alert.state) }}</span>
+          </div>
+        }
+      </div>
+    </article>
+
+    <article class="card p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 panel-title">Movimientos recientes</h5>
+        <button class="btn btn-outline-primary btn-sm">Ver historial</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Usuario</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of recentMovements; track movement.time + movement.productName) {
+              <tr>
+                <td><span [class]="movementBadgeClass(movement.type)">{{ movementLabel(movement.type) }}</span></td>
+                <td>{{ movement.productName }}</td>
+                <td>{{ movementQuantity(movement.type, movement.quantity) }}</td>
+                <td>{{ movement.userName }}</td>
+                <td>{{ movement.time }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+</section>
