@@ -7,6 +7,7 @@ import { Providers } from './features/providers/providers';
 import { Inventory } from './features/inventory/inventory';
 import { Movements } from './features/movements/movements';
 import { Reports } from './features/reports/reports';
+import { Users } from './features/users/users';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -20,6 +21,7 @@ export const routes: Routes = [
       { path: 'inventario', component: Inventory },
       { path: 'movimientos', component: Movements },
       { path: 'reportes', component: Reports },
+      { path: 'usuarios', component: Users },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
