@@ -1,0 +1,18 @@
+.shell {
+  min-height: 100vh;
+}
+
+.shell-main {
+  max-width: calc(100vw - 260px);
+}
+
+.placeholder-card {
+  border-style: dashed;
+  border-width: 1px;
+}
+
+@media (max-width: 900px) {
+  .shell-main {
+    max-width: calc(100vw - 86px);
+  }
+}

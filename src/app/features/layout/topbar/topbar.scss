@@ -1,0 +1,51 @@
+.topbar {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.68));
+}
+
+.topbar-title h5 {
+  font-weight: 800;
+  color: #244263;
+}
+
+.topbar-title small {
+  color: #587390;
+}
+
+.topbar-tag {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(221, 231, 242, 0.95);
+  background: rgba(255, 255, 255, 0.82);
+  color: #4d6785;
+}
+
+.topbar-user {
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(221, 231, 242, 0.95);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.topbar-user strong {
+  color: #2c4568;
+  font-size: 0.82rem;
+}
+
+.topbar-user small {
+  color: #607895;
+  font-size: 0.72rem;
+}
+
+.topbar-user-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #59c298, #45a984);
+  box-shadow: 0 0 0 3px rgba(89, 194, 152, 0.2);
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    align-items: start !important;
+  }
+}
