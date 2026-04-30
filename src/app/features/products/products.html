@@ -49,11 +49,8 @@
         <label class="form-label">Precio venta</label>
         <input class="form-control" type="number" min="0" formControlName="salePrice" />
       </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label">Stock inicial</label>
-        <input class="form-control" type="number" min="0" formControlName="stock" />
-      </div>
     </form>
+    <p class="small text-secondary mb-0 mt-3">El stock se gestiona desde Movimientos e Inventario.</p>
   </article>
 
   <article class="card p-3 p-md-4">
@@ -69,7 +66,6 @@
             <th>SKU</th>
             <th>Categoría</th>
             <th>Marca</th>
-            <th>Stock</th>
             <th>Estado</th>
             <th>Registro</th>
             <th class="text-end">Acciones</th>
@@ -82,7 +78,6 @@
               <td>{{ item.sku }}</td>
               <td>{{ item.category }}</td>
               <td>{{ item.brand }}</td>
-              <td>{{ item.stock }}</td>
               <td><span [class]="statusBadgeClass(item.status)">{{ item.status }}</span></td>
               <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td class="text-end">

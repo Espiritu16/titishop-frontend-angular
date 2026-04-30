@@ -12,7 +12,6 @@ interface ProductItem {
   brand: string;
   purchasePrice: number;
   salePrice: number;
-  stock: number;
   status: ProductStatus;
   createdAt: string;
 }
@@ -43,7 +42,6 @@ export class Products {
       brand: [this.brands[0], [Validators.required]],
       purchasePrice: [0, [Validators.required, Validators.min(0)]],
       salePrice: [0, [Validators.required, Validators.min(0)]],
-      stock: [0, [Validators.required, Validators.min(0)]],
     });
     this.loadProducts();
   }
@@ -79,7 +77,6 @@ export class Products {
               brand: value.brand,
               purchasePrice: value.purchasePrice,
               salePrice: value.salePrice,
-              stock: value.stock,
             }
           : p
       );
@@ -93,7 +90,6 @@ export class Products {
         brand: value.brand,
         purchasePrice: value.purchasePrice,
         salePrice: value.salePrice,
-        stock: value.stock,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       };
@@ -114,7 +110,6 @@ export class Products {
       brand: item.brand,
       purchasePrice: item.purchasePrice,
       salePrice: item.salePrice,
-      stock: item.stock,
     });
     this.feedback = `Editando producto ${item.name}.`;
   }
@@ -128,7 +123,6 @@ export class Products {
       brand: this.brands[0],
       purchasePrice: 0,
       salePrice: 0,
-      stock: 0,
     });
   }
 
@@ -179,7 +173,6 @@ export class Products {
         brand: 'NovaTech',
         purchasePrice: 35,
         salePrice: 55,
-        stock: 22,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       },
@@ -191,7 +184,6 @@ export class Products {
         brand: 'TitiHome',
         purchasePrice: 42,
         salePrice: 68,
-        stock: 11,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       },
