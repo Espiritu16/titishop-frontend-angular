@@ -8,40 +8,64 @@
       @if (editingId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveItem()">
-        {{ editingId ? 'Guardar cambios' : 'Registrar inventario' }}
-      </button>
     </div>
   </header>
 
   <article class="card p-3 p-md-4">
     <h5 class="panel-title mb-3">Datos del inventario</h5>
     <form class="row g-3" [formGroup]="inventoryForm" (ngSubmit)="saveItem()">
-      <div class="col-12 col-md-4">
+      <div class="col-12 col-md-2">
         <label class="form-label">Producto</label>
-        <input type="text" class="form-control" formControlName="product" placeholder="Nombre del producto" />
+        <div class="position-relative">
+          <input
+            type="text"
+            class="form-control"
+            formControlName="product"
+            placeholder="Buscar producto"
+            (input)="onProductInput()"
+          />
+          @if (showProductSuggestions) {
+            <div class="product-suggestions shadow-sm">
+              @for (product of filteredProducts; track product.sku) {
+                <button type="button" class="suggestion-item" (click)="selectProduct(product)">
+                  <span class="suggestion-name">{{ product.name }}</span>
+                  <small class="suggestion-sku">{{ product.sku }}</small>
+                </button>
+              }
+            </div>
+          }
+        </div>
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">SKU</label>
-        <input type="text" class="form-control text-uppercase" formControlName="sku" placeholder="TITI-001" />
+        <input type="text" class="form-control text-uppercase" formControlName="sku" readonly />
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">Categoría</label>
-        <input type="text" class="form-control" formControlName="category" />
-      </div>
-      <div class="col-12 col-md-2">
-        <label class="form-label">Stock actual</label>
-        <input type="number" min="0" class="form-control" formControlName="stock" />
+        <input type="text" class="form-control" formControlName="category" readonly />
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">Stock mínimo</label>
-        <input type="number" min="0" class="form-control" formControlName="minStock" />
+        <input
+          type="number"
+          min="0"
+          class="form-control no-spinner"
+          formControlName="minStock"
+          placeholder=""
+          (keydown)="blockInvalidNumberKeys($event)"
+        />
       </div>
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">Ubicación</label>
         <input type="text" class="form-control" formControlName="location" placeholder="Ej. A-01" />
       </div>
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <button type="button" class="btn btn-primary w-100" (click)="saveItem()">
+          {{ editingId ? 'Guardar cambios' : 'Registrar inventario' }}
+        </button>
+      </div>
     </form>
+    <p class="small text-secondary mb-0 mt-3">El stock actual se actualiza automáticamente desde Movimientos.</p>
   </article>
 
   <article class="card p-3 p-md-4">
@@ -58,7 +82,8 @@
             <th>Categoría</th>
             <th>Stock</th>
             <th>Mínimo</th>
-            <th>Estado</th>
+            <th>Estado stock</th>
+            <th>Estado registro</th>
             <th>Ubicación</th>
             <th>Actualización</th>
             <th class="text-end">Acciones</th>
@@ -73,12 +98,15 @@
               <td>{{ item.stock }}</td>
               <td>{{ item.minStock }}</td>
               <td><span [class]="stockBadgeClass(item)">{{ stockStatus(item) }}</span></td>
+              <td><span [class]="recordStatusBadgeClass(item.recordStatus)">{{ item.recordStatus }}</span></td>
               <td>{{ item.location }}</td>
               <td>{{ item.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td class="text-end">
                 <div class="d-inline-flex gap-2">
                   <button type="button" class="btn btn-outline-primary btn-sm" (click)="editItem(item)">Editar</button>
-                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeItem(item.id)">Eliminar</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleRecordStatus(item.id)">
+                    {{ item.recordStatus === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                  </button>
                 </div>
               </td>
             </tr>
