@@ -218,12 +218,6 @@ export class Products {
     this.persist();
   }
 
-  deleteProduct(id: string): void {
-    this.products = this.products.filter((p) => p.id !== id);
-    this.persist();
-    this.feedback = 'Producto eliminado.';
-  }
-
   statusBadgeClass(status: ProductStatus): string {
     return status === 'ACTIVO' ? 'badge text-bg-success' : 'badge text-bg-secondary';
   }
