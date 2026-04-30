@@ -25,6 +25,28 @@ interface RecentMovement {
   time: string;
 }
 
+interface ProductRecord {
+  status?: 'ACTIVO' | 'INACTIVO';
+}
+
+interface StockRecord {
+  sku: string;
+  product: string;
+  stock: number;
+}
+
+interface MovementRecord {
+  createdAt: string;
+  type: MovementType;
+  product: string;
+  quantity: number;
+  user: string;
+}
+
+const PRODUCTS_KEY = 'titishop_productos';
+const STOCK_KEY = 'titishop_stock';
+const MOVEMENTS_KEY = 'titishop_movimientos';
+
 @Component({
   selector: 'app-dashboard',
   imports: [],
@@ -32,24 +54,13 @@ interface RecentMovement {
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
-  readonly kpis: KpiItem[] = [
-    { label: 'Productos activos', value: 248, meta: '+12 este mes', tone: 'success' },
-    { label: 'Stock bajo', value: 18, meta: 'Requiere reposición', tone: 'warning' },
-    { label: 'Entradas hoy', value: 34, meta: '6 proveedores', tone: 'success' },
-    { label: 'Salidas hoy', value: 21, meta: 'Sin incidencias', tone: 'neutral' },
-  ];
+  kpis: KpiItem[] = [];
+  alerts: InventoryAlert[] = [];
+  recentMovements: RecentMovement[] = [];
 
-  readonly alerts: InventoryAlert[] = [
-    { productName: 'Cable USB-C 2m', sku: 'TITI-USB-02', state: 'AGOTADO' },
-    { productName: 'Lámpara LED escritorio', sku: 'TITI-HOG-15', state: 'STOCK_BAJO' },
-    { productName: 'Audífonos Bluetooth', sku: 'TITI-AUD-09', state: 'STOCK_BAJO' },
-  ];
-
-  readonly recentMovements: RecentMovement[] = [
-    { type: 'ENTRADA', productName: 'Mouse inalámbrico', quantity: 20, userName: 'María Soto', time: '09:42' },
-    { type: 'SALIDA', productName: 'Memoria USB 64GB', quantity: 8, userName: 'Luis Peña', time: '10:05' },
-    { type: 'AJUSTE', productName: 'Parlante portátil', quantity: 3, userName: 'Ana Ruiz', time: '10:18' },
-  ];
+  constructor() {
+    this.loadDashboardData();
+  }
 
   get criticalAlertsCount(): number {
     return this.alerts.filter((alert) => alert.state === 'AGOTADO').length;
@@ -81,5 +92,59 @@ export class Dashboard {
 
   movementQuantity(type: MovementType, quantity: number): string {
     return type === 'SALIDA' ? `-${quantity}` : `+${quantity}`;
+  }
+
+  private loadDashboardData(): void {
+    const products = this.readArray<ProductRecord>(PRODUCTS_KEY);
+    const stock = this.readArray<StockRecord>(STOCK_KEY);
+    const movements = this.readArray<MovementRecord>(MOVEMENTS_KEY);
+    const now = new Date();
+    const sameDay = (iso: string) => {
+      const d = new Date(iso);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    };
+
+    const activeProducts = products.filter((p) => (p.status ?? 'ACTIVO') === 'ACTIVO').length;
+    const lowStock = stock.filter((s) => s.stock > 0 && s.stock <= 10).length;
+    const entradasHoy = movements.filter((m) => m.type === 'ENTRADA' && sameDay(m.createdAt)).length;
+    const salidasHoy = movements.filter((m) => m.type === 'SALIDA' && sameDay(m.createdAt)).length;
+
+    this.kpis = [
+      { label: 'Productos activos', value: activeProducts, meta: 'Catálogo vigente', tone: 'success' },
+      { label: 'Stock bajo', value: lowStock, meta: 'Requiere reposición', tone: 'warning' },
+      { label: 'Entradas hoy', value: entradasHoy, meta: 'Movimientos del día', tone: 'success' },
+      { label: 'Salidas hoy', value: salidasHoy, meta: 'Movimientos del día', tone: 'neutral' },
+    ];
+
+    this.alerts = stock
+      .filter((s) => s.stock <= 10)
+      .slice(0, 6)
+      .map((s) => ({
+        productName: s.product,
+        sku: s.sku,
+        state: s.stock <= 0 ? 'AGOTADO' : 'STOCK_BAJO',
+      }));
+
+    this.recentMovements = movements
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 8)
+      .map((m) => ({
+        type: m.type,
+        productName: m.product,
+        quantity: m.quantity,
+        userName: m.user,
+        time: new Date(m.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      }));
+  }
+
+  private readArray<T>(key: string): T[] {
+    try {
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? (JSON.parse(raw) as T[]) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 }
