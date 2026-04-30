@@ -16,6 +16,8 @@ interface InventoryItem {
 }
 
 const INVENTORY_KEY = 'titishop_inventario';
+const PRODUCTS_KEY = 'titishop_productos';
+const STOCK_KEY = 'titishop_stock';
 
 @Component({
   selector: 'app-inventory',
@@ -137,17 +139,33 @@ export class Inventory {
   }
 
   private loadInventory(): void {
+    const productMap = this.readProductMap();
+    const stockMap = this.readStockMap();
     const raw = localStorage.getItem(INVENTORY_KEY);
+    const baseInventory = this.seedInventory();
+
     if (!raw) {
-      this.inventory = this.seedInventory();
+      this.inventory = baseInventory;
       this.persist();
       return;
     }
+
     try {
       const parsed = JSON.parse(raw) as InventoryItem[];
-      this.inventory = Array.isArray(parsed) ? parsed : this.seedInventory();
+      const fromStorage = Array.isArray(parsed) ? parsed : baseInventory;
+
+      this.inventory = fromStorage.map((item) => {
+        const product = productMap.get(item.sku);
+        const stock = stockMap.get(item.sku) ?? item.stock;
+        return {
+          ...item,
+          product: product?.name ?? item.product,
+          category: product?.category ?? item.category,
+          stock,
+        };
+      });
     } catch {
-      this.inventory = this.seedInventory();
+      this.inventory = baseInventory;
     }
   }
 
@@ -156,27 +174,57 @@ export class Inventory {
   }
 
   private seedInventory(): InventoryItem[] {
+    const productMap = this.readProductMap();
+    const stockMap = this.readStockMap();
     return [
       {
         id: crypto.randomUUID(),
-        product: 'Mouse inalámbrico',
+        product: productMap.get('TITI-MOU-01')?.name ?? 'Mouse inalámbrico',
         sku: 'TITI-MOU-01',
-        category: 'Tecnología',
-        stock: 22,
+        category: productMap.get('TITI-MOU-01')?.category ?? 'Tecnología',
+        stock: stockMap.get('TITI-MOU-01') ?? 22,
         minStock: 8,
         location: 'A-01',
         updatedAt: new Date().toISOString(),
       },
       {
         id: crypto.randomUUID(),
-        product: 'Lámpara LED escritorio',
+        product: productMap.get('TITI-HOG-15')?.name ?? 'Lámpara LED escritorio',
         sku: 'TITI-HOG-15',
-        category: 'Hogar',
-        stock: 6,
+        category: productMap.get('TITI-HOG-15')?.category ?? 'Hogar',
+        stock: stockMap.get('TITI-HOG-15') ?? 6,
         minStock: 10,
         location: 'B-03',
         updatedAt: new Date().toISOString(),
       },
     ];
+  }
+
+  private readProductMap(): Map<string, { name: string; category: string }> {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ sku: string; name: string; category: string }>;
+      const map = new Map<string, { name: string; category: string }>();
+      parsed.forEach((item) => {
+        if (!item?.sku) return;
+        map.set(item.sku, { name: item.name, category: item.category });
+      });
+      return map;
+    } catch {
+      return new Map<string, { name: string; category: string }>();
+    }
+  }
+
+  private readStockMap(): Map<string, number> {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STOCK_KEY) ?? '[]') as Array<{ sku: string; stock: number }>;
+      const map = new Map<string, number>();
+      parsed.forEach((item) => {
+        if (!item?.sku) return;
+        map.set(item.sku, Number.isFinite(item.stock) ? item.stock : 0);
+      });
+      return map;
+    } catch {
+      return new Map<string, number>();
+    }
   }
 }
