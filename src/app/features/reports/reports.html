@@ -1,0 +1,121 @@
+<section class="reports-page app-page">
+  <header class="section-head">
+    <div>
+      <h1 class="page-title">Reportes de movimientos</h1>
+      <p class="page-subtitle">Consulta por fechas, tipo, proveedor y producto.</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm" (click)="clearFilters()">Limpiar filtros</button>
+  </header>
+
+  <article class="card p-3 p-md-4">
+    <form class="row g-3" [formGroup]="filterForm">
+      <div class="col-12 col-md-2">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-control" formControlName="fromDate" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-control" formControlName="toDate" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" formControlName="type">
+          @for (item of movementTypes; track item) {
+            <option [value]="item">{{ item }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Proveedor</label>
+        <select class="form-select" formControlName="provider">
+          @for (item of providers; track item) {
+            <option [value]="item">{{ item }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Producto</label>
+        <div class="position-relative">
+          <input
+            type="text"
+            class="form-control"
+            formControlName="product"
+            placeholder="Buscar producto"
+            autocomplete="off"
+            (focus)="onProductFilterFocus()"
+            (input)="onProductFilterInput()"
+          />
+          @if (showProductSuggestions) {
+            <div class="product-suggestions shadow-sm">
+              @for (item of filteredProducts; track item) {
+                <button type="button" class="suggestion-item" (click)="selectProductFilter(item)">
+                  {{ item }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </form>
+  </article>
+
+  <section class="kpi-grid">
+    <article class="card p-3">
+      <p class="kpi-label">Entradas</p>
+      <h4 class="kpi-value">{{ totalEntradas }}</h4>
+    </article>
+    <article class="card p-3">
+      <p class="kpi-label">Salidas</p>
+      <h4 class="kpi-value">{{ totalSalidas }}</h4>
+    </article>
+    <article class="card p-3">
+      <p class="kpi-label">Ajustes</p>
+      <h4 class="kpi-value">{{ totalAjustes }}</h4>
+    </article>
+    <article class="card p-3">
+      <p class="kpi-label">Registros</p>
+      <h4 class="kpi-value">{{ filteredMovements.length }}</h4>
+    </article>
+  </section>
+
+  <article class="card p-3 p-md-4">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Producto</th>
+            <th>SKU</th>
+            <th>Proveedor</th>
+            <th>Cantidad</th>
+            <th>Motivo</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (filteredMovements.length === 0) {
+            <tr>
+              <td colspan="8" class="text-center text-secondary py-4">
+                No hay movimientos para los filtros seleccionados.
+              </td>
+            </tr>
+          } @else {
+            @for (movement of filteredMovements; track movement.id) {
+              <tr>
+                <td>{{ movement.date | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td><span [class]="movementBadgeClass(movement.type)">{{ movement.type }}</span></td>
+                <td>{{ movement.product }}</td>
+                <td>{{ movement.sku }}</td>
+                <td>{{ movement.provider }}</td>
+                <td>{{ movement.quantity }}</td>
+                <td>{{ movement.reason }}</td>
+                <td>{{ movement.user }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
