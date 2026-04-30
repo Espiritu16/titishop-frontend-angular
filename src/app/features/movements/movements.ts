@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AuthService } from '../../core/auth.service';
 
 type MovementType = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
 
@@ -21,8 +22,14 @@ interface StockItem {
   stock: number;
 }
 
+interface ProductRef {
+  sku: string;
+  name: string;
+}
+
 const MOVEMENTS_KEY = 'titishop_movimientos';
 const STOCK_KEY = 'titishop_stock';
+const PRODUCTS_KEY = 'titishop_productos';
 
 @Component({
   selector: 'app-movements',
@@ -37,21 +44,53 @@ export class Movements {
 
   movements: MovementItem[] = [];
   stock: StockItem[] = [];
+  productsRef: ProductRef[] = [];
+  filteredProducts: ProductRef[] = [];
+  showProductSuggestions = false;
 
   readonly movementTypes: MovementType[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
 
   readonly movementForm;
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    public auth: AuthService
+  ) {
     this.movementForm = this.fb.nonNullable.group({
       type: ['ENTRADA' as MovementType, [Validators.required]],
       product: ['', [Validators.required, Validators.minLength(3)]],
       sku: ['', [Validators.required, Validators.minLength(3)]],
       quantity: [0, [Validators.required, Validators.min(1)]],
       reason: ['', [Validators.required, Validators.minLength(4)]],
-      user: ['Operador', [Validators.required, Validators.minLength(3)]],
+      user: [this.auth.session()?.fullName ?? 'Operador', [Validators.required, Validators.minLength(3)]],
     });
     this.loadData();
+  }
+
+  get canSubmit(): boolean {
+    const value = this.movementForm.getRawValue();
+    const hasValidReason = value.reason.trim().length >= 4;
+    const hasValidQuantity = Number.isFinite(value.quantity) && value.quantity > 0;
+    return this.movementForm.valid && hasValidReason && hasValidQuantity;
+  }
+
+  onProductInput(): void {
+    const query = this.movementForm.controls.product.value.trim().toLowerCase();
+    if (!query) {
+      this.filteredProducts = [];
+      this.showProductSuggestions = false;
+      return;
+    }
+    this.filteredProducts = this.productsRef.filter((item) => item.name.toLowerCase().includes(query)).slice(0, 8);
+    this.showProductSuggestions = this.filteredProducts.length > 0;
+  }
+
+  selectProduct(product: ProductRef): void {
+    this.movementForm.patchValue({
+      product: product.name,
+      sku: product.sku,
+    });
+    this.showProductSuggestions = false;
   }
 
   submitMovement(): void {
@@ -71,27 +110,44 @@ export class Movements {
       const value = this.movementForm.getRawValue();
       const sku = value.sku.trim().toUpperCase();
       const product = value.product.trim();
-      const existingStock = this.stock.find((item) => item.sku === sku);
+      const reason = value.reason.trim();
+      const quantity = value.quantity;
 
-      if (!existingStock) {
-        this.stock.push({ sku, product, stock: 0 });
-      } else {
-        existingStock.product = product;
+      if (!reason || reason.length < 4) {
+        this.feedback = 'Ingrese un motivo válido (mínimo 4 caracteres).';
+        return;
       }
 
-      const stockItem = this.stock.find((item) => item.sku === sku)!;
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        this.feedback = 'Ingrese una cantidad mayor a cero.';
+        return;
+      }
 
-      if (value.type === 'SALIDA' && stockItem.stock < value.quantity) {
+      const productExists = this.productsRef.some((item) => item.sku === sku && item.name.toLowerCase() === product.toLowerCase());
+      if (!productExists) {
+        this.feedback = 'Seleccione un producto válido del listado.';
+        return;
+      }
+
+      let stockItem = this.stock.find((item) => item.sku === sku);
+      if (!stockItem) {
+        stockItem = { sku, product, stock: 0 };
+        this.stock.push(stockItem);
+      } else {
+        stockItem.product = product;
+      }
+
+      if (value.type === 'SALIDA' && stockItem.stock < quantity) {
         this.feedback = `Stock insuficiente. Disponible: ${stockItem.stock}.`;
         return;
       }
 
       if (value.type === 'ENTRADA') {
-        stockItem.stock += value.quantity;
+        stockItem.stock += quantity;
       } else if (value.type === 'SALIDA') {
-        stockItem.stock -= value.quantity;
+        stockItem.stock -= quantity;
       } else {
-        stockItem.stock = value.quantity;
+        stockItem.stock = quantity;
       }
 
       const movement: MovementItem = {
@@ -100,18 +156,24 @@ export class Movements {
         type: value.type,
         product,
         sku,
-        quantity: value.quantity,
-        reason: value.reason.trim(),
+        quantity,
+        reason,
         user: value.user.trim(),
       };
 
       this.movements = [movement, ...this.movements];
       this.persistData();
       this.feedback = 'Movimiento registrado correctamente.';
-      this.movementForm.patchValue({
+      this.movementForm.reset({
+        type: 'ENTRADA',
+        product: '',
+        sku: '',
         quantity: 0,
         reason: '',
+        user: this.auth.session()?.fullName ?? 'Operador',
       });
+      this.filteredProducts = [];
+      this.showProductSuggestions = false;
     } finally {
       this.isSubmitting = false;
     }
@@ -147,6 +209,15 @@ export class Movements {
       this.persistData();
     } catch {
       this.stock = [];
+    }
+
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ sku: string; name: string }>;
+      this.productsRef = parsed
+        .filter((item) => !!item?.sku && !!item?.name)
+        .map((item) => ({ sku: item.sku, name: item.name }));
+    } catch {
+      this.productsRef = [];
     }
   }
 
