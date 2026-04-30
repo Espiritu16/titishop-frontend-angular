@@ -11,7 +11,7 @@ interface UserRecord {
   active: boolean;
 }
 
-const USERS_KEY = 'titishop_users';
+const USERS_KEY = 'titishop_usuarios';
 const SESSION_KEY = 'titishop_session';
 
 @Injectable({ providedIn: 'root' })

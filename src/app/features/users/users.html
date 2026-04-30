@@ -8,18 +8,21 @@
       @if (editingUserId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveUser()">
-        {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
-      </button>
     </div>
   </header>
 
   <article class="card p-3 p-md-4">
     <h5 class="panel-title mb-3">Datos del usuario</h5>
     <form class="row g-3" [formGroup]="userForm" (ngSubmit)="saveUser()">
-      <div class="col-12 col-md-5">
+      <div class="col-12 col-md-3">
         <label class="form-label">Nombre completo</label>
-        <input type="text" class="form-control" formControlName="fullName" placeholder="Ingrese nombre" />
+        <input
+          type="text"
+          class="form-control"
+          formControlName="fullName"
+          placeholder="Ingrese nombre"
+          (input)="onNameInput($event)"
+        />
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Correo</label>
@@ -32,6 +35,11 @@
             <option [value]="role">{{ role }}</option>
           }
         </select>
+      </div>
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <button type="button" class="btn btn-primary w-100" (click)="saveUser()" [disabled]="!canSubmit">
+          {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
+        </button>
       </div>
     </form>
   </article>
