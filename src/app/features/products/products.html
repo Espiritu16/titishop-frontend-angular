@@ -66,28 +66,6 @@
           <small class="text-danger d-block mt-1">{{ brandError }}</small>
         }
       </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label">Precio compra</label>
-        <input
-          class="form-control no-spinner"
-          type="number"
-          min="0"
-          formControlName="purchasePrice"
-          placeholder="0.00"
-          (keydown)="blockInvalidNumberKeys($event)"
-        />
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label">Precio venta</label>
-        <input
-          class="form-control no-spinner"
-          type="number"
-          min="0"
-          formControlName="salePrice"
-          placeholder="0.00"
-          (keydown)="blockInvalidNumberKeys($event)"
-        />
-      </div>
       <div class="col-12 col-md-4 d-flex align-items-end">
         <button type="button" class="btn btn-primary w-100" (click)="saveProduct()" [disabled]="!canSubmit">
           {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
