@@ -11,10 +11,12 @@ interface UserItem {
   email: string;
   role: UserRole;
   status: UserStatus;
+  password: string;
   createdAt: string;
 }
 
 const USERS_KEY = 'titishop_usuarios';
+const DEFAULT_PASSWORD = '123456';
 
 @Component({
   selector: 'app-users',
@@ -77,6 +79,7 @@ export class Users {
         email: normalizedEmail,
         role: formValue.role,
         status: 'ACTIVO',
+        password: DEFAULT_PASSWORD,
         createdAt: new Date().toISOString(),
       };
       this.users = [newUser, ...this.users];
@@ -113,6 +116,9 @@ export class Users {
         : user
     );
     this.persistUsers();
+    if (this.editingUserId) {
+      this.feedback = 'Estado de usuario actualizado.';
+    }
   }
 
   statusBadgeClass(status: UserStatus): string {
@@ -128,15 +134,40 @@ export class Users {
     }
 
     try {
-      const parsed = JSON.parse(raw) as UserItem[];
-      this.users = Array.isArray(parsed) ? parsed : this.seedUsers();
+      const parsed = JSON.parse(raw) as Array<Partial<UserItem> & { active?: boolean }>;
+      if (!Array.isArray(parsed)) {
+        this.users = this.seedUsers();
+        return;
+      }
+
+      this.users = parsed.map((user) => {
+        const active = typeof user.active === 'boolean' ? user.active : user.status === 'ACTIVO';
+        return {
+          id: user.id ?? crypto.randomUUID(),
+          fullName: user.fullName ?? 'Usuario sin nombre',
+          email: (user.email ?? '').toLowerCase(),
+          role: (user.role as UserRole) ?? 'ALMACENERO',
+          status: active ? 'ACTIVO' : 'INACTIVO',
+          password: user.password ?? DEFAULT_PASSWORD,
+          createdAt: user.createdAt ?? new Date().toISOString(),
+        };
+      });
     } catch {
       this.users = this.seedUsers();
     }
   }
 
   private persistUsers(): void {
-    localStorage.setItem(USERS_KEY, JSON.stringify(this.users));
+    const usersForAuth = this.users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      password: user.password,
+      role: user.role,
+      active: user.status === 'ACTIVO',
+      createdAt: user.createdAt,
+    }));
+    localStorage.setItem(USERS_KEY, JSON.stringify(usersForAuth));
   }
 
   private seedUsers(): UserItem[] {
@@ -147,6 +178,7 @@ export class Users {
         email: 'admin@titishop.pe',
         role: 'ADMINISTRADOR',
         status: 'ACTIVO',
+        password: DEFAULT_PASSWORD,
         createdAt: new Date().toISOString(),
       },
       {
@@ -155,6 +187,16 @@ export class Users {
         email: 'almacen@titishop.pe',
         role: 'ALMACENERO',
         status: 'ACTIVO',
+        password: DEFAULT_PASSWORD,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: crypto.randomUUID(),
+        fullName: 'Sonia Supervisora',
+        email: 'supervisor@titishop.pe',
+        role: 'SUPERVISOR',
+        status: 'ACTIVO',
+        password: DEFAULT_PASSWORD,
         createdAt: new Date().toISOString(),
       },
     ];
