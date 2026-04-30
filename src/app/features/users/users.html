@@ -8,9 +8,6 @@
       @if (editingUserId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveUser()" [disabled]="!canSubmit">
-        {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
-      </button>
     </div>
   </header>
 
@@ -38,6 +35,11 @@
             <option [value]="role">{{ role }}</option>
           }
         </select>
+      </div>
+      <div class="col-12 d-flex justify-content-center pt-1">
+        <button type="button" class="btn btn-primary px-4" (click)="saveUser()" [disabled]="!canSubmit">
+          {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
+        </button>
       </div>
     </form>
   </article>
