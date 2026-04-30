@@ -1,0 +1,100 @@
+<section class="movements-page app-page">
+  <header class="section-head">
+    <div>
+      <h1 class="page-title">Movimientos de inventario</h1>
+      <p class="page-subtitle">Registro de entradas, salidas y ajustes con trazabilidad.</p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-primary btn-sm"
+      [disabled]="isSubmitting"
+      (click)="submitMovement()"
+    >
+      {{ isSubmitting ? 'Registrando...' : 'Registrar movimiento' }}
+    </button>
+  </header>
+
+  <article class="card p-3 p-md-4">
+    <h5 class="panel-title mb-3">Registrar movimiento</h5>
+    <form class="row g-3" [formGroup]="movementForm" (ngSubmit)="submitMovement()">
+      <div class="col-12 col-md-2">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" formControlName="type">
+          @for (type of movementTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Producto</label>
+        <input class="form-control" type="text" formControlName="product" placeholder="Nombre del producto" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">SKU</label>
+        <input class="form-control text-uppercase" type="text" formControlName="sku" placeholder="TITI-001" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">Cantidad</label>
+        <input class="form-control" type="number" min="1" formControlName="quantity" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">Stock actual</label>
+        <input
+          class="form-control"
+          type="number"
+          [value]="availableStock(movementForm.controls.sku.value)"
+          readonly
+        />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label">Motivo</label>
+        <input class="form-control" type="text" formControlName="reason" placeholder="Detalle del movimiento" />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label">Usuario</label>
+        <input class="form-control" type="text" formControlName="user" placeholder="Nombre del operador" />
+      </div>
+    </form>
+  </article>
+
+  <article class="card p-3 p-md-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="panel-title mb-0">Historial de movimientos</h5>
+      <span class="badge text-bg-primary">{{ movements.length }} registros</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Producto</th>
+            <th>SKU</th>
+            <th>Cantidad</th>
+            <th>Motivo</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of movements; track item.id) {
+            <tr>
+              <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td><span [class]="movementBadgeClass(item.type)">{{ item.type }}</span></td>
+              <td>{{ item.product }}</td>
+              <td>{{ item.sku }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.reason }}</td>
+              <td>{{ item.user }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  @if (feedback) {
+    <div class="card p-3 movements-feedback">
+      {{ feedback }}
+    </div>
+  }
+</section>

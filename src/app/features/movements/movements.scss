@@ -1,0 +1,19 @@
+.movements-page {
+  padding: 1rem;
+}
+
+.panel-title {
+  color: #2a446f;
+  font-weight: 800;
+}
+
+.movements-feedback {
+  color: #2a446f;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .movements-page {
+    padding: 0.75rem;
+  }
+}
