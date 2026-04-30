@@ -1,0 +1,24 @@
+.settings-page {
+  padding: 1rem;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel-title {
+  color: #2a446f;
+  font-weight: 800;
+}
+
+.settings-feedback {
+  color: #2a446f;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 0.75rem;
+  }
+}
