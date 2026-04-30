@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 
 type ProductStatus = 'ACTIVO' | 'INACTIVO';
 
@@ -12,7 +12,6 @@ interface ProductItem {
   brand: string;
   purchasePrice: number;
   salePrice: number;
-  stock: number;
   status: ProductStatus;
   createdAt: string;
 }
@@ -21,7 +20,7 @@ const PRODUCTS_KEY = 'titishop_productos';
 
 @Component({
   selector: 'app-products',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './products.html',
   styleUrl: './products.scss',
 })
@@ -30,8 +29,12 @@ export class Products {
   editingId: string | null = null;
   products: ProductItem[] = [];
 
-  readonly categories = ['Accesorios', 'Tecnología', 'Hogar', 'Oficina'];
-  readonly brands = ['TitiHome', 'NovaTech', 'Andes', 'Genérico'];
+  categories = ['Accesorios', 'Tecnología', 'Hogar', 'Oficina'];
+  brands = ['TitiHome', 'NovaTech', 'Andes', 'Genérico'];
+  newCategory = '';
+  newBrand = '';
+  categoryError = '';
+  brandError = '';
 
   readonly productForm;
 
@@ -41,11 +44,71 @@ export class Products {
       sku: ['', [Validators.required, Validators.minLength(3)]],
       category: [this.categories[0], [Validators.required]],
       brand: [this.brands[0], [Validators.required]],
-      purchasePrice: [0, [Validators.required, Validators.min(0)]],
-      salePrice: [0, [Validators.required, Validators.min(0)]],
-      stock: [0, [Validators.required, Validators.min(0)]],
+      purchasePrice: [null as number | null, [Validators.required, Validators.min(0)]],
+      salePrice: [null as number | null, [Validators.required, Validators.min(0)]],
     });
     this.loadProducts();
+  }
+
+  get canSubmit(): boolean {
+    const { name, sku } = this.productForm.getRawValue();
+    return this.productForm.valid && !!name.trim() && !!sku.trim();
+  }
+
+  blockInvalidNumberKeys(event: KeyboardEvent): void {
+    if (['e', 'E', '+', '-'].includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  addCategory(): void {
+    this.categoryError = '';
+    const normalized = this.normalizeCatalogName(this.newCategory);
+    if (!normalized) {
+      this.categoryError = 'Solo letras y espacios.';
+      return;
+    }
+    if (this.categories.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      this.categoryError = 'La categoría ya existe.';
+      return;
+    }
+    this.categories = [...this.categories, normalized];
+    this.productForm.patchValue({ category: normalized });
+    this.newCategory = '';
+    this.feedback = 'Categoría agregada.';
+  }
+
+  addBrand(): void {
+    this.brandError = '';
+    const normalized = this.normalizeCatalogName(this.newBrand);
+    if (!normalized) {
+      this.brandError = 'Solo letras y espacios.';
+      return;
+    }
+    if (this.brands.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      this.brandError = 'La marca ya existe.';
+      return;
+    }
+    this.brands = [...this.brands, normalized];
+    this.productForm.patchValue({ brand: normalized });
+    this.newBrand = '';
+    this.feedback = 'Marca agregada.';
+  }
+
+  onCategoryInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.newCategory = sanitized;
+    this.categoryError = '';
+  }
+
+  onBrandInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.newBrand = sanitized;
+    this.brandError = '';
   }
 
   saveProduct(): void {
@@ -56,14 +119,34 @@ export class Products {
     }
 
     const value = this.productForm.getRawValue();
+    const normalizedName = value.name.trim().replace(/\s+/g, ' ');
     const normalizedSku = value.sku.trim().toUpperCase();
+
+    if (!normalizedName) {
+      this.feedback = 'Ingrese el nombre del producto.';
+      return;
+    }
+
+    if (!normalizedSku) {
+      this.feedback = 'Ingrese el SKU del producto.';
+      return;
+    }
+
+    if (value.purchasePrice === null || value.salePrice === null) {
+      this.feedback = 'Ingrese precios válidos.';
+      return;
+    }
+
+    const purchasePrice = value.purchasePrice;
+    const salePrice = value.salePrice;
+
     const skuExists = this.products.some((p) => p.sku === normalizedSku && p.id !== this.editingId);
     if (skuExists) {
       this.feedback = 'El SKU ya existe.';
       return;
     }
 
-    if (value.salePrice < value.purchasePrice) {
+    if (salePrice < purchasePrice) {
       this.feedback = 'El precio de venta no puede ser menor al de compra.';
       return;
     }
@@ -73,13 +156,12 @@ export class Products {
         p.id === this.editingId
           ? {
               ...p,
-              name: value.name.trim(),
+              name: normalizedName,
               sku: normalizedSku,
               category: value.category,
               brand: value.brand,
-              purchasePrice: value.purchasePrice,
-              salePrice: value.salePrice,
-              stock: value.stock,
+              purchasePrice,
+              salePrice,
             }
           : p
       );
@@ -87,13 +169,12 @@ export class Products {
     } else {
       const item: ProductItem = {
         id: crypto.randomUUID(),
-        name: value.name.trim(),
+        name: normalizedName,
         sku: normalizedSku,
         category: value.category,
         brand: value.brand,
-        purchasePrice: value.purchasePrice,
-        salePrice: value.salePrice,
-        stock: value.stock,
+        purchasePrice,
+        salePrice,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       };
@@ -114,7 +195,6 @@ export class Products {
       brand: item.brand,
       purchasePrice: item.purchasePrice,
       salePrice: item.salePrice,
-      stock: item.stock,
     });
     this.feedback = `Editando producto ${item.name}.`;
   }
@@ -126,9 +206,8 @@ export class Products {
       sku: '',
       category: this.categories[0],
       brand: this.brands[0],
-      purchasePrice: 0,
-      salePrice: 0,
-      stock: 0,
+      purchasePrice: null,
+      salePrice: null,
     });
   }
 
@@ -137,12 +216,6 @@ export class Products {
       p.id === id ? { ...p, status: p.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO' } : p
     );
     this.persist();
-  }
-
-  deleteProduct(id: string): void {
-    this.products = this.products.filter((p) => p.id !== id);
-    this.persist();
-    this.feedback = 'Producto eliminado.';
   }
 
   statusBadgeClass(status: ProductStatus): string {
@@ -179,7 +252,6 @@ export class Products {
         brand: 'NovaTech',
         purchasePrice: 35,
         salePrice: 55,
-        stock: 22,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       },
@@ -191,10 +263,16 @@ export class Products {
         brand: 'TitiHome',
         purchasePrice: 42,
         salePrice: 68,
-        stock: 11,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       },
     ];
+  }
+
+  private normalizeCatalogName(value: string): string {
+    const normalized = value.trim().replace(/\s+/g, ' ');
+    if (!normalized) return '';
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(normalized)) return '';
+    return normalized;
   }
 }

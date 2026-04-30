@@ -8,9 +8,6 @@
       @if (editingId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveProduct()">
-        {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
-      </button>
     </div>
   </header>
 
@@ -32,6 +29,20 @@
             <option [value]="category">{{ category }}</option>
           }
         </select>
+        <div class="input-group input-group-sm mt-2">
+          <input
+            class="form-control"
+            type="text"
+            [(ngModel)]="newCategory"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nueva categoría"
+            (input)="onCategoryInput($event)"
+          />
+          <button type="button" class="btn btn-primary" (click)="addCategory()" [disabled]="!newCategory.trim()">Agregar</button>
+        </div>
+        @if (categoryError) {
+          <small class="text-danger d-block mt-1">{{ categoryError }}</small>
+        }
       </div>
       <div class="col-12 col-md-3">
         <label class="form-label">Marca</label>
@@ -40,20 +51,50 @@
             <option [value]="brand">{{ brand }}</option>
           }
         </select>
+        <div class="input-group input-group-sm mt-2">
+          <input
+            class="form-control"
+            type="text"
+            [(ngModel)]="newBrand"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Nueva marca"
+            (input)="onBrandInput($event)"
+          />
+          <button type="button" class="btn btn-primary" (click)="addBrand()" [disabled]="!newBrand.trim()">Agregar</button>
+        </div>
+        @if (brandError) {
+          <small class="text-danger d-block mt-1">{{ brandError }}</small>
+        }
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Precio compra</label>
-        <input class="form-control" type="number" min="0" formControlName="purchasePrice" />
+        <input
+          class="form-control no-spinner"
+          type="number"
+          min="0"
+          formControlName="purchasePrice"
+          placeholder="0.00"
+          (keydown)="blockInvalidNumberKeys($event)"
+        />
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Precio venta</label>
-        <input class="form-control" type="number" min="0" formControlName="salePrice" />
+        <input
+          class="form-control no-spinner"
+          type="number"
+          min="0"
+          formControlName="salePrice"
+          placeholder="0.00"
+          (keydown)="blockInvalidNumberKeys($event)"
+        />
       </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label">Stock inicial</label>
-        <input class="form-control" type="number" min="0" formControlName="stock" />
+      <div class="col-12 col-md-4 d-flex align-items-end">
+        <button type="button" class="btn btn-primary w-100" (click)="saveProduct()" [disabled]="!canSubmit">
+          {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
+        </button>
       </div>
     </form>
+    <p class="small text-secondary mb-0 mt-3">El stock se gestiona desde Movimientos e Inventario.</p>
   </article>
 
   <article class="card p-3 p-md-4">
@@ -69,7 +110,6 @@
             <th>SKU</th>
             <th>Categoría</th>
             <th>Marca</th>
-            <th>Stock</th>
             <th>Estado</th>
             <th>Registro</th>
             <th class="text-end">Acciones</th>
@@ -82,7 +122,6 @@
               <td>{{ item.sku }}</td>
               <td>{{ item.category }}</td>
               <td>{{ item.brand }}</td>
-              <td>{{ item.stock }}</td>
               <td><span [class]="statusBadgeClass(item.status)">{{ item.status }}</span></td>
               <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td class="text-end">
@@ -95,7 +134,6 @@
                   >
                     {{ item.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
                   </button>
-                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteProduct(item.id)">Eliminar</button>
                 </div>
               </td>
             </tr>
