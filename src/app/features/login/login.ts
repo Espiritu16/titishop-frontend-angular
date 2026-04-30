@@ -10,7 +10,7 @@ import { AuthService } from '../../core/auth.service';
   styleUrl: './login.scss',
 })
 export class Login {
-  email = 'admin@titishop.pe';
+  email = 'kevin@titishop.com';
   password = '123456';
   error = '';
   message = '';
