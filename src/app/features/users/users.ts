@@ -57,6 +57,12 @@ export class Users {
       return;
     }
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailPattern.test(normalizedEmail)) {
+      this.feedback = 'Ingrese un correo electrónico válido.';
+      return;
+    }
+
     const duplicated = this.users.find(
       (user) => user.email.toLowerCase() === normalizedEmail && user.id !== this.editingUserId
     );
