@@ -34,7 +34,7 @@ export class Users {
 
   constructor(private fb: FormBuilder) {
     this.userForm = this.fb.nonNullable.group({
-      fullName: ['', [Validators.required, Validators.minLength(3)]],
+      fullName: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/)]],
       email: ['', [Validators.required, Validators.email]],
       role: ['ALMACENERO' as UserRole, [Validators.required]],
     });
@@ -49,7 +49,13 @@ export class Users {
     }
 
     const formValue = this.userForm.getRawValue();
+    const normalizedName = formValue.fullName.trim().replace(/\s+/g, ' ');
     const normalizedEmail = formValue.email.trim().toLowerCase();
+
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(normalizedName)) {
+      this.feedback = 'El nombre solo puede contener letras y espacios.';
+      return;
+    }
 
     const duplicated = this.users.find(
       (user) => user.email.toLowerCase() === normalizedEmail && user.id !== this.editingUserId
@@ -65,7 +71,7 @@ export class Users {
         user.id === this.editingUserId
           ? {
               ...user,
-              fullName: formValue.fullName.trim(),
+              fullName: normalizedName,
               email: normalizedEmail,
               role: formValue.role,
             }
@@ -75,7 +81,7 @@ export class Users {
     } else {
       const newUser: UserItem = {
         id: crypto.randomUUID(),
-        fullName: formValue.fullName.trim(),
+        fullName: normalizedName,
         email: normalizedEmail,
         role: formValue.role,
         status: 'ACTIVO',
