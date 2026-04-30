@@ -50,15 +50,24 @@
           readonly
         />
       </div>
-      <div class="col-12 col-md-5">
+      <div class="col-12 col-md-3">
+        <label class="form-label">Proveedor</label>
+        <select class="form-select" formControlName="provider">
+          <option value="">Seleccionar proveedor</option>
+          @for (provider of providersRef; track provider) {
+            <option [value]="provider">{{ provider }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
         <label class="form-label">Motivo</label>
         <input class="form-control" type="text" formControlName="reason" placeholder="Detalle del movimiento" />
       </div>
-      <div class="col-12 col-md-5">
+      <div class="col-12 col-md-2">
         <label class="form-label">Usuario</label>
         <input class="form-control" type="text" formControlName="user" readonly />
       </div>
-      <div class="col-12 col-md-2 d-flex align-items-end">
+      <div class="col-12 col-md-3 d-flex align-items-end">
         <button
           type="button"
           class="btn btn-primary w-100"
@@ -69,6 +78,9 @@
         </button>
       </div>
     </form>
+    @if (movementForm.controls.type.value === 'ENTRADA') {
+      <small class="text-secondary d-block mt-2">Proveedor obligatorio para entradas.</small>
+    }
   </article>
 
   <article class="card p-3 p-md-4">
@@ -84,6 +96,7 @@
             <th>Tipo</th>
             <th>Producto</th>
             <th>SKU</th>
+            <th>Proveedor</th>
             <th>Cantidad</th>
             <th>Motivo</th>
             <th>Usuario</th>
@@ -96,6 +109,7 @@
               <td><span [class]="movementBadgeClass(item.type)">{{ item.type }}</span></td>
               <td>{{ item.product }}</td>
               <td>{{ item.sku }}</td>
+              <td>{{ item.provider || '-' }}</td>
               <td>{{ item.quantity }}</td>
               <td>{{ item.reason }}</td>
               <td>{{ item.user }}</td>
