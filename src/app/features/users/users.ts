@@ -31,6 +31,7 @@ export class Users {
   readonly roles: UserRole[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
   users: UserItem[] = [];
   readonly userForm;
+  private readonly namePattern = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
 
   constructor(private fb: FormBuilder) {
     this.userForm = this.fb.nonNullable.group({
@@ -52,7 +53,7 @@ export class Users {
     const normalizedName = formValue.fullName.trim().replace(/\s+/g, ' ');
     const normalizedEmail = formValue.email.trim().toLowerCase();
 
-    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(normalizedName)) {
+    if (!this.namePattern.test(normalizedName)) {
       this.feedback = 'El nombre solo puede contener letras y espacios.';
       return;
     }
@@ -135,6 +136,17 @@ export class Users {
 
   statusBadgeClass(status: UserStatus): string {
     return status === 'ACTIVO' ? 'badge text-bg-success' : 'badge text-bg-secondary';
+  }
+
+  onNameInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value
+      .replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '')
+      .replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) {
+      input.value = sanitized;
+      this.userForm.controls.fullName.setValue(sanitized, { emitEvent: false });
+    }
   }
 
   private loadUsers(): void {
