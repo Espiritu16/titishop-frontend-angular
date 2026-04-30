@@ -8,7 +8,7 @@
       @if (editingId) {
         <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
       }
-      <button type="button" class="btn btn-primary btn-sm" (click)="saveProduct()">
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveProduct()" [disabled]="!canSubmit">
         {{ editingId ? 'Guardar cambios' : 'Registrar producto' }}
       </button>
     </div>
@@ -43,11 +43,25 @@
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Precio compra</label>
-        <input class="form-control" type="number" min="0" formControlName="purchasePrice" />
+        <input
+          class="form-control no-spinner"
+          type="number"
+          min="0"
+          formControlName="purchasePrice"
+          placeholder="0.00"
+          (keydown)="blockInvalidNumberKeys($event)"
+        />
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label">Precio venta</label>
-        <input class="form-control" type="number" min="0" formControlName="salePrice" />
+        <input
+          class="form-control no-spinner"
+          type="number"
+          min="0"
+          formControlName="salePrice"
+          placeholder="0.00"
+          (keydown)="blockInvalidNumberKeys($event)"
+        />
       </div>
     </form>
     <p class="small text-secondary mb-0 mt-3">El stock se gestiona desde Movimientos e Inventario.</p>

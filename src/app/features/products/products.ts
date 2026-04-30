@@ -40,10 +40,21 @@ export class Products {
       sku: ['', [Validators.required, Validators.minLength(3)]],
       category: [this.categories[0], [Validators.required]],
       brand: [this.brands[0], [Validators.required]],
-      purchasePrice: [0, [Validators.required, Validators.min(0)]],
-      salePrice: [0, [Validators.required, Validators.min(0)]],
+      purchasePrice: [null as number | null, [Validators.required, Validators.min(0)]],
+      salePrice: [null as number | null, [Validators.required, Validators.min(0)]],
     });
     this.loadProducts();
+  }
+
+  get canSubmit(): boolean {
+    const { name, sku } = this.productForm.getRawValue();
+    return this.productForm.valid && !!name.trim() && !!sku.trim();
+  }
+
+  blockInvalidNumberKeys(event: KeyboardEvent): void {
+    if (['e', 'E', '+', '-'].includes(event.key)) {
+      event.preventDefault();
+    }
   }
 
   saveProduct(): void {
@@ -54,14 +65,34 @@ export class Products {
     }
 
     const value = this.productForm.getRawValue();
+    const normalizedName = value.name.trim().replace(/\s+/g, ' ');
     const normalizedSku = value.sku.trim().toUpperCase();
+
+    if (!normalizedName) {
+      this.feedback = 'Ingrese el nombre del producto.';
+      return;
+    }
+
+    if (!normalizedSku) {
+      this.feedback = 'Ingrese el SKU del producto.';
+      return;
+    }
+
+    if (value.purchasePrice === null || value.salePrice === null) {
+      this.feedback = 'Ingrese precios válidos.';
+      return;
+    }
+
+    const purchasePrice = value.purchasePrice;
+    const salePrice = value.salePrice;
+
     const skuExists = this.products.some((p) => p.sku === normalizedSku && p.id !== this.editingId);
     if (skuExists) {
       this.feedback = 'El SKU ya existe.';
       return;
     }
 
-    if (value.salePrice < value.purchasePrice) {
+    if (salePrice < purchasePrice) {
       this.feedback = 'El precio de venta no puede ser menor al de compra.';
       return;
     }
@@ -71,12 +102,12 @@ export class Products {
         p.id === this.editingId
           ? {
               ...p,
-              name: value.name.trim(),
+              name: normalizedName,
               sku: normalizedSku,
               category: value.category,
               brand: value.brand,
-              purchasePrice: value.purchasePrice,
-              salePrice: value.salePrice,
+              purchasePrice,
+              salePrice,
             }
           : p
       );
@@ -84,12 +115,12 @@ export class Products {
     } else {
       const item: ProductItem = {
         id: crypto.randomUUID(),
-        name: value.name.trim(),
+        name: normalizedName,
         sku: normalizedSku,
         category: value.category,
         brand: value.brand,
-        purchasePrice: value.purchasePrice,
-        salePrice: value.salePrice,
+        purchasePrice,
+        salePrice,
         status: 'ACTIVO',
         createdAt: new Date().toISOString(),
       };
@@ -121,8 +152,8 @@ export class Products {
       sku: '',
       category: this.categories[0],
       brand: this.brands[0],
-      purchasePrice: 0,
-      salePrice: 0,
+      purchasePrice: null,
+      salePrice: null,
     });
   }
 
