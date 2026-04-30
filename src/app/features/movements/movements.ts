@@ -67,6 +67,13 @@ export class Movements {
     this.loadData();
   }
 
+  get canSubmit(): boolean {
+    const value = this.movementForm.getRawValue();
+    const hasValidReason = value.reason.trim().length >= 4;
+    const hasValidQuantity = Number.isFinite(value.quantity) && value.quantity > 0;
+    return this.movementForm.valid && hasValidReason && hasValidQuantity;
+  }
+
   onProductInput(): void {
     const query = this.movementForm.controls.product.value.trim().toLowerCase();
     if (!query) {
@@ -103,28 +110,44 @@ export class Movements {
       const value = this.movementForm.getRawValue();
       const sku = value.sku.trim().toUpperCase();
       const product = value.product.trim();
+      const reason = value.reason.trim();
+      const quantity = value.quantity;
+
+      if (!reason || reason.length < 4) {
+        this.feedback = 'Ingrese un motivo válido (mínimo 4 caracteres).';
+        return;
+      }
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        this.feedback = 'Ingrese una cantidad mayor a cero.';
+        return;
+      }
+
       const productExists = this.productsRef.some((item) => item.sku === sku && item.name.toLowerCase() === product.toLowerCase());
       if (!productExists) {
         this.feedback = 'Seleccione un producto válido del listado.';
         return;
       }
 
-      const existingStock = this.stock.find((item) => item.sku === sku);
-      if (existingStock) existingStock.product = product;
+      let stockItem = this.stock.find((item) => item.sku === sku);
+      if (!stockItem) {
+        stockItem = { sku, product, stock: 0 };
+        this.stock.push(stockItem);
+      } else {
+        stockItem.product = product;
+      }
 
-      const stockItem = this.stock.find((item) => item.sku === sku) ?? { sku, product, stock: 0 };
-
-      if (value.type === 'SALIDA' && stockItem.stock < value.quantity) {
+      if (value.type === 'SALIDA' && stockItem.stock < quantity) {
         this.feedback = `Stock insuficiente. Disponible: ${stockItem.stock}.`;
         return;
       }
 
       if (value.type === 'ENTRADA') {
-        stockItem.stock += value.quantity;
+        stockItem.stock += quantity;
       } else if (value.type === 'SALIDA') {
-        stockItem.stock -= value.quantity;
+        stockItem.stock -= quantity;
       } else {
-        stockItem.stock = value.quantity;
+        stockItem.stock = quantity;
       }
 
       const movement: MovementItem = {
@@ -133,19 +156,24 @@ export class Movements {
         type: value.type,
         product,
         sku,
-        quantity: value.quantity,
-        reason: value.reason.trim(),
+        quantity,
+        reason,
         user: value.user.trim(),
       };
 
       this.movements = [movement, ...this.movements];
       this.persistData();
       this.feedback = 'Movimiento registrado correctamente.';
-      this.movementForm.patchValue({
+      this.movementForm.reset({
+        type: 'ENTRADA',
+        product: '',
+        sku: '',
         quantity: 0,
         reason: '',
         user: this.auth.session()?.fullName ?? 'Operador',
       });
+      this.filteredProducts = [];
+      this.showProductSuggestions = false;
     } finally {
       this.isSubmitting = false;
     }
