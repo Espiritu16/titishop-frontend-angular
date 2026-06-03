@@ -1,47 +1,49 @@
 import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Role, SessionUser } from './models';
+import { Observable, tap } from 'rxjs';
+import { apiUrl } from './api.config';
+import { LoginResponse, Role, SessionUser } from './models';
 
-interface UserRecord {
-  id: string;
-  fullName: string;
-  email: string;
-  password: string;
-  role: Role;
-  active: boolean;
-}
-
-const USERS_KEY = 'titishop_usuarios';
-const SESSION_KEY = 'titishop_session';
+const TOKEN_SESION_KEY = 'token_sesion';
+const USUARIO_SESION_KEY = 'usuario_sesion';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  readonly session = signal<SessionUser | null>(this.readSession());
+  readonly session = signal<SessionUser | null>(null);
 
-  constructor(private router: Router) {
-    this.ensureUsersSeed();
+  constructor(
+    private http: HttpClient,
+    private router: Router
+  ) {
+    this.restaurarSesion();
   }
 
-  login(email: string, password: string): { ok: boolean; message: string } {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? '[]') as UserRecord[];
-    const user = users.find(
-      (item) =>
-        item.active &&
-        item.email.trim().toLowerCase() === email.trim().toLowerCase() &&
-        item.password === password
-    );
-    if (!user) return { ok: false, message: 'Credenciales inválidas.' };
+  login(email: string, password: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(apiUrl('/autenticacion/login'), {
+        email: email.trim().toLowerCase(),
+        password,
+      })
+      .pipe(
+        tap((response) => {
+          const session: SessionUser = {
+            id: response.usuarioId,
+            fullName: response.nombreCompleto,
+            email: response.email,
+            role: response.rol,
+            loginAt: new Date().toISOString(),
+            expiresAt: response.expiraEn,
+          };
+          this.session.set(session);
+          sessionStorage.setItem(TOKEN_SESION_KEY, response.token);
+          sessionStorage.setItem(USUARIO_SESION_KEY, JSON.stringify(session));
+        })
+      );
+  }
 
-    const session: SessionUser = {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,
-      loginAt: new Date().toISOString(),
-    };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    this.session.set(session);
-    return { ok: true, message: 'Inicio de sesión correcto.' };
+  token(): string | null {
+    return sessionStorage.getItem(TOKEN_SESION_KEY);
   }
 
   hasAnyRole(roles: Role[]): boolean {
@@ -49,59 +51,25 @@ export class AuthService {
     return !!currentRole && roles.includes(currentRole);
   }
 
-  logout(): void {
-    localStorage.removeItem(SESSION_KEY);
+  clearSession(): void {
     this.session.set(null);
+    sessionStorage.removeItem(TOKEN_SESION_KEY);
+    sessionStorage.removeItem(USUARIO_SESION_KEY);
+  }
+
+  logout(): void {
+    this.clearSession();
     this.router.navigateByUrl('/');
   }
 
-  private readSession(): SessionUser | null {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
+  private restaurarSesion(): void {
+    const storedSession = sessionStorage.getItem(USUARIO_SESION_KEY);
+    if (!storedSession) return;
 
     try {
-      return JSON.parse(raw) as SessionUser;
+      this.session.set(JSON.parse(storedSession) as SessionUser);
     } catch {
-      return null;
+      this.clearSession();
     }
-  }
-
-  private ensureUsersSeed(): void {
-    if (localStorage.getItem(USERS_KEY)) return;
-    const users: UserRecord[] = [
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Kevin',
-        email: 'kevin@titishop.com',
-        password: '123456',
-        role: 'ADMINISTRADOR',
-        active: true,
-      },
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Felix',
-        email: 'felix@titishop.com',
-        password: '123456',
-        role: 'ALMACENERO',
-        active: true,
-      },
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Fabrizio',
-        email: 'fabrizio@titishop.com',
-        password: '123456',
-        role: 'SUPERVISOR',
-        active: true,
-      },
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Milagros',
-        email: 'milagros@titishop.com',
-        password: '123456',
-        role: 'SUPERVISOR',
-        active: true,
-      },
-    ];
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }
 }
