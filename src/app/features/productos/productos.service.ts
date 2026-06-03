@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { ActualizarProductoRequest, CrearProductoRequest, ProductoResponse } from '../../core/models';
+import { ActualizarProductoRequest, ArchivoResponse, CrearProductoRequest, ProductoResponse } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductosService {
@@ -17,6 +17,12 @@ export class ProductosService {
 
   actualizar(id: string, request: ActualizarProductoRequest): Observable<ProductoResponse> {
     return this.api.put<ProductoResponse, ActualizarProductoRequest>(`/productos/${id}`, request);
+  }
+
+  subirImagenProducto(archivo: File): Observable<ArchivoResponse> {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    return this.api.postForm<ArchivoResponse>('/archivos/productos', formData);
   }
 
   inactivar(id: string): Observable<void> {

@@ -153,12 +153,35 @@
             <label class="block text-sm font-medium text-gray-600 mb-1">SKU *</label>
             <input type="text" formControlName="sku" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:border-indigo-400" placeholder="TITI-XXX-00">
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Imagen URL</label>
-            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
+	          <div>
+	            <label class="block text-sm font-medium text-gray-600 mb-1">Imagen URL</label>
+	            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
+	          </div>
+	          <div class="sm:col-span-2">
+	            <label class="block text-sm font-medium text-gray-600 mb-1">Subir imagen</label>
+	            <div class="image-upload">
+	              <input id="producto-imagen" type="file" accept="image/png,image/jpeg,image/webp,image/gif" (change)="seleccionarImagenProducto($event)" class="sr-only">
+	              <label for="producto-imagen" class="image-upload__button">
+	                <i class="bi bi-upload"></i>
+	                Seleccionar imagen
+	              </label>
+	              @if (imagenProductoNombre) {
+	                <span class="image-upload__name">{{ imagenProductoNombre }}</span>
+	                <button type="button" (click)="limpiarImagenSeleccionada()" class="image-upload__clear" aria-label="Quitar imagen seleccionada">
+	                  <i class="bi bi-x-lg"></i>
+	                </button>
+	              }
+	            </div>
+	            @if (imagenProductoPreview) {
+	              <img [src]="imagenProductoPreview" alt="Vista previa de imagen seleccionada" class="image-upload__preview">
+	            }
+	            @if (imagenProductoError) {
+	              <p class="mt-1 text-xs text-red-600">{{ imagenProductoError }}</p>
+	            }
+	            <p class="mt-1 text-xs text-gray-500">JPG, PNG, WEBP o GIF. Maximo 5 MB. Si seleccionas archivo, reemplaza la URL al guardar.</p>
+	          </div>
+	          <div>
+	            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
             <select formControlName="categoriaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
               @for (categoria of opcionesCategoriaProducto; track categoria.id) {
                 <option [value]="categoria.id">{{ categoria.nombre }}{{ categoria.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
