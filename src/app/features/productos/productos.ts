@@ -1,11 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin, Observable } from 'rxjs';
+import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
 import {
   CategoriaResponse,
+  ArchivoResponse,
   EstadoCatalogo,
   EstadoProducto,
   MarcaResponse,
@@ -42,6 +43,10 @@ export class Productos {
   marcaTexto = '';
   marcaEditandoId: string | null = null;
   enviando = false;
+  imagenProductoSeleccionada: File | null = null;
+  imagenProductoNombre = '';
+  imagenProductoPreview = '';
+  imagenProductoError = '';
 
   readonly productoForm;
 
@@ -160,8 +165,9 @@ export class Productos {
       return;
     }
 
+    this.imagenProductoError = '';
     const value = this.productoForm.getRawValue();
-    const request = {
+    const requestBase = {
       nombre: this.normalizarTexto(value.nombre),
       sku: this.normalizarSku(value.sku),
       descripcion: this.normalizarTexto(value.descripcion),
@@ -173,27 +179,40 @@ export class Productos {
     };
 
     this.enviando = true;
-    const request$ = this.editandoId
-      ? this.productosService.actualizar(this.editandoId, {
-          ...request,
-          estado: this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO',
-        })
-      : this.productosService.crear(request);
+    const imagen$: Observable<ArchivoResponse | null> = this.imagenProductoSeleccionada
+      ? this.productosService.subirImagenProducto(this.imagenProductoSeleccionada)
+      : of(null);
 
-    request$.subscribe({
+    imagen$
+      .pipe(
+        switchMap((imagen) => {
+          const request = {
+            ...requestBase,
+            imagenUrl: imagen?.url ?? requestBase.imagenUrl,
+          };
+          return this.editandoId
+            ? this.productosService.actualizar(this.editandoId, {
+                ...request,
+                estado: this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO',
+              })
+            : this.productosService.crear(request);
+        }),
+        finalize(() => {
+          this.enviando = false;
+        })
+      )
+      .subscribe({
       next: () => {
         this.mensaje = this.editandoId
           ? 'Producto actualizado correctamente.'
           : 'Producto registrado correctamente.';
-        this.enviando = false;
         this.cancelarEdicion();
         this.cargarDatos();
       },
       error: (error: unknown) => {
-        this.enviando = false;
         this.mensaje = getApiErrorMessage(error);
       },
-    });
+      });
   }
 
   editarProducto(producto: ProductoResponse): void {
@@ -209,6 +228,7 @@ export class Productos {
       precioCompra: producto.precioCompra,
       precioVenta: producto.precioVenta,
     });
+    this.limpiarImagenSeleccionada();
     this.mensaje = `Editando producto ${producto.nombre}.`;
   }
 
@@ -225,6 +245,42 @@ export class Productos {
       precioCompra: 0,
       precioVenta: 0,
     });
+    this.limpiarImagenSeleccionada();
+  }
+
+  seleccionarImagenProducto(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const archivo = input.files?.[0] ?? null;
+    this.limpiarImagenSeleccionada();
+    if (!archivo) return;
+
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!tiposPermitidos.includes(archivo.type)) {
+      this.imagenProductoError = 'Selecciona una imagen JPG, PNG, WEBP o GIF.';
+      input.value = '';
+      return;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (archivo.size > maxBytes) {
+      this.imagenProductoError = 'La imagen no debe superar 5 MB.';
+      input.value = '';
+      return;
+    }
+
+    this.imagenProductoSeleccionada = archivo;
+    this.imagenProductoNombre = archivo.name;
+    this.imagenProductoPreview = URL.createObjectURL(archivo);
+  }
+
+  limpiarImagenSeleccionada(): void {
+    if (this.imagenProductoPreview) {
+      URL.revokeObjectURL(this.imagenProductoPreview);
+    }
+    this.imagenProductoSeleccionada = null;
+    this.imagenProductoNombre = '';
+    this.imagenProductoPreview = '';
+    this.imagenProductoError = '';
   }
 
   cambiarEstadoProducto(producto: ProductoResponse): void {

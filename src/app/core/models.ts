@@ -108,6 +108,14 @@ export interface ActualizarProductoRequest extends CrearProductoRequest {
   estado: EstadoProducto;
 }
 
+export interface ArchivoResponse {
+  url: string;
+  ruta: string;
+  nombreOriginal: string;
+  contentType: string;
+  size: number;
+}
+
 export interface ProveedorResponse {
   id: string;
   ruc: string;

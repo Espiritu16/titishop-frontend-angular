@@ -15,6 +15,10 @@ export class ApiClientService {
     return this.http.post<TResponse>(apiUrl(path), body);
   }
 
+  postForm<TResponse>(path: string, body: FormData): Observable<TResponse> {
+    return this.http.post<TResponse>(apiUrl(path), body);
+  }
+
   put<TResponse, TRequest extends object>(path: string, body: TRequest): Observable<TResponse> {
     return this.http.put<TResponse>(apiUrl(path), body);
   }
