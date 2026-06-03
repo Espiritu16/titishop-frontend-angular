@@ -1,91 +1,97 @@
-<section class="users-page app-page">
-  <header class="section-head">
+<header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shrink-0">
+  <div class="flex items-center gap-2 text-sm text-gray-400">
+    <i class="bi bi-house"></i>
+    <i class="bi bi-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium">Usuarios</span>
+  </div>
+</header>
+
+<main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
+  <div class="flex items-center justify-between mb-5">
     <div>
-      <h1 class="page-title">Gestión de usuarios</h1>
-      <p class="page-subtitle">Administración de cuentas internas y perfiles de acceso.</p>
+      <h1 class="text-xl font-bold text-gray-800">Usuarios</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Gestión de cuentas del sistema</p>
     </div>
-    <div class="d-flex gap-2">
-      @if (editingUserId) {
-        <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
-      }
+    <button (click)="cancelarEdicion(); mostrarModal = true" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+      <i class="bi bi-plus-lg"></i>
+      <span class="hidden sm:inline">Nuevo usuario</span>
+      <span class="sm:hidden">Nuevo</span>
+    </button>
+  </div>
+
+  @if (estadoListado === 'cargando') {
+    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+      <i class="bi bi-arrow-repeat animate-spin text-indigo-500 text-xl"></i>
+      <p class="mt-2">Cargando usuarios...</p>
     </div>
-  </header>
-
-  <article class="card p-3 p-md-4">
-    <h5 class="panel-title mb-3">Datos del usuario</h5>
-    <form class="row g-3" [formGroup]="userForm" (ngSubmit)="saveUser()">
-      <div class="col-12 col-md-3">
-        <label class="form-label">Nombre completo</label>
-        <input
-          type="text"
-          class="form-control"
-          formControlName="fullName"
-          placeholder="Ingrese nombre"
-          (input)="onNameInput($event)"
-        />
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label">Correo</label>
-        <input type="email" class="form-control" formControlName="email" placeholder="usuario@dominio.com" />
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label">Rol</label>
-        <select class="form-select" formControlName="role">
-          @for (role of roles; track role) {
-            <option [value]="role">{{ role }}</option>
-          }
-        </select>
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label">Contraseña</label>
-        <input
-          type="password"
-          class="form-control"
-          formControlName="password"
-          [placeholder]="editingUserId ? 'Dejar vacío para conservar' : 'Mínimo 6 caracteres'"
-        />
-      </div>
-      <div class="col-12 col-md-2 d-flex align-items-end">
-        <button type="button" class="btn btn-primary w-100" (click)="saveUser()" [disabled]="!canSubmit">
-          {{ editingUserId ? 'Guardar cambios' : 'Registrar usuario' }}
-        </button>
-      </div>
-    </form>
-  </article>
-
-  <article class="card p-3 p-md-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="panel-title mb-0">Listado de usuarios</h5>
-      <span class="badge text-bg-primary">{{ users.length }} registrados</span>
+  } @else if (estadoListado === 'error') {
+    <div class="bg-red-50 border border-red-100 text-red-700 rounded-xl p-4 text-sm">
+      {{ errorListado }}
     </div>
+  } @else if (!usuarios.length) {
+    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+      No hay usuarios registrados.
+    </div>
+  } @else {
+  <div class="block min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 xl:hidden">
+    @for (u of usuarios; track u.id) {
+      <article class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+            <span class="text-indigo-600 text-base font-bold">{{ u.nombreCompleto[0] }}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-gray-800">{{ u.nombreCompleto }}</p>
+            <p class="text-xs text-gray-400 truncate">{{ u.email }}</p>
+          </div>
+          <button (click)="editarUsuario(u)" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors" aria-label="Editar usuario">
+            <i class="bi bi-pencil text-sm text-gray-500"></i>
+          </button>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{{ u.rol }}</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoClase(u.estado) }}">{{ u.estado }}</span>
+          <span class="text-xs text-gray-400 ml-auto">{{ u.creadoEn | date:'dd/MM/yy' }}</span>
+        </div>
+      </article>
+    }
+  </div>
 
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
+  <div class="hidden min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white xl:block">
+    <div class="h-full overflow-auto">
+      <table class="w-full text-sm min-w-[500px]">
         <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Correo</th>
-            <th>Contraseña</th>
-            <th>Rol</th>
-            <th>Estado</th>
-            <th>Registro</th>
-            <th class="text-end">Acciones</th>
+          <tr class="bg-gray-50 border-b border-gray-100 text-gray-400">
+            <th class="px-4 py-3 text-left font-medium">Usuario</th>
+            <th class="px-4 py-3 text-left font-medium hidden md:table-cell">Correo</th>
+            <th class="px-4 py-3 text-left font-medium">Rol</th>
+            <th class="px-4 py-3 text-left font-medium">Estado</th>
+            <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Creado</th>
+            <th class="px-4 py-3 text-left font-medium">Acc.</th>
           </tr>
         </thead>
         <tbody>
-          @for (user of users; track user.id) {
-            <tr>
-              <td>{{ user.fullName }}</td>
-              <td>{{ user.email }}</td>
-              <td>{{ user.password }}</td>
-              <td>{{ user.role }}</td>
-              <td><span [class]="statusBadgeClass(user.status)">{{ user.status }}</span></td>
-              <td>{{ user.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-              <td class="text-end">
-                <div class="d-inline-flex gap-2">
-                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="editUser(user)">Editar</button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleStatus(user.id)">
-                    {{ user.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+          @for (u of usuarios; track u.id) {
+            <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <span class="text-indigo-600 text-sm font-bold">{{ u.nombreCompleto[0] }}</span>
+                  </div>
+                  <span class="font-medium text-gray-800">{{ u.nombreCompleto }}</span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-gray-600 text-xs hidden md:table-cell">{{ u.email }}</td>
+              <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{{ u.rol }}</span></td>
+              <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoClase(u.estado) }}">{{ u.estado }}</span></td>
+              <td class="px-4 py-3 text-gray-400 hidden lg:table-cell">{{ u.creadoEn | date:'dd/MM/yy' }}</td>
+              <td class="px-4 py-3">
+                <div class="flex gap-1.5">
+                  <button (click)="editarUsuario(u)" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors" aria-label="Editar usuario">
+                    <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
+                  </button>
+                  <button (click)="cambiarEstadoUsuario(u)" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors" aria-label="Cambiar estado de usuario">
+                    <i class="bi bi-toggle-on text-sm text-gray-500 hover:text-red-500"></i>
                   </button>
                 </div>
               </td>
@@ -94,11 +100,56 @@
         </tbody>
       </table>
     </div>
-  </article>
-
-  @if (feedback) {
-    <div class="card p-3 users-feedback">
-      {{ feedback }}
-    </div>
+  </div>
   }
-</section>
+</main>
+
+@if (mostrarModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cancelarEdicion()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-800">{{ usuarioEditandoId ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
+        <button (click)="cancelarEdicion()" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors" aria-label="Cerrar modal">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+      <form [formGroup]="usuarioForm" (ngSubmit)="guardarUsuario()" class="px-6 py-5 grid grid-cols-1 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Nombre completo *</label>
+          <input type="text" formControlName="nombreCompleto" (input)="onNombreInput($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre y apellido">
+          @if (usuarioForm.controls.nombreCompleto.touched && usuarioForm.controls.nombreCompleto.invalid) {
+            <p class="mt-1 text-xs text-red-500">Ingresa un nombre válido.</p>
+          }
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Correo *</label>
+          <input type="email" formControlName="email" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="correo@titishop.com">
+          @if (usuarioForm.controls.email.touched && usuarioForm.controls.email.invalid) {
+            <p class="mt-1 text-xs text-red-500">Ingresa un correo válido.</p>
+          }
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Rol *</label>
+          <select formControlName="rol" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+            @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Contraseña {{ usuarioEditandoId ? '(vacío = no cambia)' : '*' }}</label>
+          <input type="password" formControlName="password" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Mínimo 8 caracteres">
+          @if (usuarioForm.controls.password.touched && usuarioForm.controls.password.invalid) {
+            <p class="mt-1 text-xs text-red-500">La contraseña debe tener al menos 8 caracteres.</p>
+          }
+        </div>
+        @if (mensaje) {
+          <p class="text-xs" [class.text-red-500]="usuarioForm.invalid || mensaje.includes('error')" [class.text-gray-500]="usuarioForm.valid && !mensaje.includes('error')">{{ mensaje }}</p>
+        }
+        <div class="flex gap-3 pt-2 border-t border-gray-100">
+          <button type="submit" [disabled]="!puedeGuardar" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-300 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ usuarioEditandoId ? 'Actualizar' : 'Guardar' }}</button>
+          <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

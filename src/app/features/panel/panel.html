@@ -1,75 +1,100 @@
-<section class="dashboard-page app-page">
-  <header class="section-head">
-    <div>
-      <h1 class="page-title">Panel de control</h1>
-      <p class="page-subtitle">Resumen operativo de inventario y movimientos de hoy.</p>
+<header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+  <div class="hidden lg:flex items-center gap-2 text-sm text-gray-400">
+    <i class="bi bi-house"></i>
+    <i class="bi bi-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium">Panel</span>
+  </div>
+  <div class="lg:hidden text-sm font-semibold text-gray-800">Panel</div>
+</header>
+
+<main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
+  <div class="mb-5">
+    <h1 class="text-xl font-bold text-gray-800">Panel</h1>
+    <p class="text-sm text-gray-400 mt-0.5">Resumen general del sistema</p>
+  </div>
+
+  @if (estado === 'cargando') {
+    <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando panel...</div>
+  } @else if (estado === 'error') {
+    <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ error }}</div>
+  } @else {
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      @for (kpi of kpis; track kpi.label) {
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+          <p class="text-2xl font-bold text-gray-800 leading-none">{{ kpi.value }}</p>
+          <p class="text-sm text-gray-600 font-medium mt-1 leading-tight">{{ kpi.label }}</p>
+          <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">{{ kpi.meta }}</p>
+        </div>
+      }
     </div>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-primary btn-sm">Ver reportes</button>
-      <button type="button" class="btn btn-primary btn-sm">Registrar movimiento</button>
-    </div>
-  </header>
 
-  <section class="kpi-grid">
-    @for (kpi of kpis; track kpi.label) {
-      <article class="card p-3 kpi-card">
-        <p class="kpi-label">{{ kpi.label }}</p>
-        <h3 class="kpi-value">{{ kpi.value }}</h3>
-        <span [class]="toneClass(kpi.tone)">{{ kpi.meta }}</span>
-      </article>
-    }
-  </section>
-
-  <section class="dashboard-grid">
-    <article class="card p-3 p-md-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0 panel-title">Alertas de inventario</h5>
-        <span class="badge text-bg-danger">{{ criticalAlertsCount }} críticas</span>
+    <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <h2 class="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <i class="bi bi-exclamation-triangle text-amber-400"></i>
+          Alertas de inventario
+          @if ((resumen?.productosStockCritico ?? 0) > 0) {
+            <span class="ml-auto bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{{ resumen?.productosStockCritico }}</span>
+          }
+        </h2>
+        <p class="text-sm text-gray-500 py-4">
+          {{ (resumen?.productosStockCritico ?? 0) > 0 ? 'Hay productos en stock crítico.' : 'Sin alertas' }}
+        </p>
       </div>
 
-      <div class="alert-list">
-        @for (alert of alerts; track alert.sku) {
-          <div class="alert-row">
-            <div>
-              <p class="item-name">{{ alert.productName }}</p>
-              <small>SKU: {{ alert.sku }}</small>
-            </div>
-            <span [class]="alertBadgeClass(alert.state)">{{ alertLabel(alert.state) }}</span>
-          </div>
-        }
-      </div>
-    </article>
-
-    <article class="card p-3 p-md-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0 panel-title">Movimientos recientes</h5>
-        <button class="btn btn-outline-primary btn-sm">Ver historial</button>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Producto</th>
-              <th>Cantidad</th>
-              <th>Usuario</th>
-              <th>Hora</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (movement of recentMovements; track movement.time + movement.productName) {
-              <tr>
-                <td><span [class]="movementBadgeClass(movement.type)">{{ movementLabel(movement.type) }}</span></td>
-                <td>{{ movement.productName }}</td>
-                <td>{{ movementQuantity(movement.type, movement.quantity) }}</td>
-                <td>{{ movement.userName }}</td>
-                <td>{{ movement.time }}</td>
-              </tr>
+      <div class="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-4 lg:col-span-2">
+        <h2 class="text-base font-semibold text-gray-700 mb-3">Últimos movimientos</h2>
+        <div class="min-h-0 flex-1 overflow-auto">
+          <div class="space-y-3 sm:hidden">
+            @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
+              <article class="rounded-xl border border-gray-100 bg-white p-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-gray-800">{{ movimiento.productoNombre }}</p>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ movimiento.fecha | date:'dd/MM/yy' }}</p>
+                  </div>
+                  <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
+                  <span class="truncate text-gray-500">{{ movimiento.creadoPorNombre }}</span>
+                  <span class="font-semibold text-gray-800">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</span>
+                </div>
+              </article>
+            } @empty {
+              <div class="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-400">No hay movimientos recientes.</div>
             }
-          </tbody>
-        </table>
+          </div>
+
+          <table class="hidden w-full min-w-[420px] text-sm sm:table">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-100">
+                <th class="pb-2 text-left font-medium">Tipo</th>
+                <th class="pb-2 text-left font-medium">Producto</th>
+                <th class="pb-2 text-left font-medium">Cant.</th>
+                <th class="pb-2 text-left font-medium hidden sm:table-cell">Usuario</th>
+                <th class="pb-2 text-left font-medium">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
+                <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                  <td class="py-2.5">
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
+                  </td>
+                  <td class="py-2.5 text-gray-700 max-w-[120px] truncate">{{ movimiento.productoNombre }}</td>
+                  <td class="py-2.5 text-gray-600">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</td>
+                  <td class="py-2.5 text-gray-600 hidden sm:table-cell">{{ movimiento.creadoPorNombre }}</td>
+                  <td class="py-2.5 text-gray-400 whitespace-nowrap">{{ movimiento.fecha | date:'dd/MM/yy' }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="py-6 text-center text-sm text-gray-400">No hay movimientos recientes.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
-    </article>
-  </section>
-</section>
+    </div>
+  }
+</main>

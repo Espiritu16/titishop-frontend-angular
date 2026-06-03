@@ -1,239 +1,298 @@
-import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { getApiErrorMessage } from '../../core/api-error';
+import { EstadoCarga } from '../../core/estado-carga';
+import { EstadoProveedor, ProveedorResponse } from '../../core/models';
+import { ProveedoresService } from './proveedores.service';
 
-type ProviderStatus = 'ACTIVO' | 'INACTIVO';
-
-interface ProviderItem {
-  id: string;
-  businessName: string;
-  ruc: string;
-  contact: string;
-  phone: string;
-  email: string;
-  address: string;
-  status: ProviderStatus;
-  createdAt: string;
-}
-
-const PROVIDERS_KEY = 'titishop_proveedores';
+type ToastType = 'success' | 'error';
 
 @Component({
-  selector: 'app-providers',
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-proveedores',
   imports: [ReactiveFormsModule, DatePipe],
-  templateUrl: './providers.html',
-  styleUrl: './providers.scss',
+  templateUrl: './proveedores.html',
+  styleUrl: './proveedores.scss',
 })
-export class Providers {
-  feedback = '';
-  editingId: string | null = null;
-  providers: ProviderItem[] = [];
-  isSubmitting = false;
+export class Proveedores {
+  mensaje = '';
+  errorListado = '';
+  errorRuc = '';
+  toastMessage = '';
+  toastType: ToastType = 'success';
+  editandoId: string | null = null;
+  proveedores: ProveedorResponse[] = [];
+  estadoListado: EstadoCarga = 'inicial';
+  enviando = false;
+  consultandoRuc = false;
+  mostrarModal = false;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  readonly providerForm;
+  readonly proveedorForm;
 
-  constructor(private fb: FormBuilder) {
-    this.providerForm = this.fb.nonNullable.group({
-      businessName: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(80)]],
+  constructor(
+    private fb: FormBuilder,
+    private proveedoresService: ProveedoresService
+  ) {
+    this.proveedorForm = this.fb.nonNullable.group({
+      razonSocial: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
       ruc: ['', [Validators.required, Validators.pattern(/^\d{11}$/)]],
-      contact: ['', [Validators.required, Validators.pattern(/^\d{9}$/)]],
-      phone: ['', [Validators.required, Validators.pattern(/^\d{6,9}$/)]],
-      email: ['', [Validators.required, Validators.email, Validators.maxLength(120)]],
-      address: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(120)]],
+      celular: ['', [Validators.pattern(/^\d{9}$/)]],
+      telefono: ['', [Validators.pattern(/^\d{9}$/)]],
+      email: ['', [Validators.email, Validators.maxLength(160)]],
+      direccion: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(160)]],
     });
-    this.loadProviders();
+    this.cargarProveedores();
   }
 
-  saveProvider(): void {
-    if (this.isSubmitting) {
+  cargarProveedores(): void {
+    this.estadoListado = 'cargando';
+    this.errorListado = '';
+    this.proveedoresService.listar().subscribe({
+      next: (proveedores) => {
+        this.proveedores = proveedores;
+        this.estadoListado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estadoListado = 'error';
+        this.errorListado = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  consultarRuc(): void {
+    const ruc = this.proveedorForm.controls.ruc.value.replace(/\D/g, '').trim();
+    this.mensaje = '';
+    this.errorRuc = '';
+
+    if (!/^\d{11}$/.test(ruc)) {
+      this.proveedorForm.controls.ruc.markAsTouched();
+      this.errorRuc = 'Ingrese un RUC válido de 11 dígitos.';
+      this.mostrarToast('Ingrese un RUC válido antes de consultar.', 'error');
       return;
     }
 
-    if (this.providerForm.invalid) {
-      this.providerForm.markAllAsTouched();
-      this.feedback = 'Completa correctamente los campos requeridos.';
+    this.consultandoRuc = true;
+    this.proveedoresService.consultarRuc(ruc).subscribe({
+      next: (response) => {
+        const razonSocial = response.razonSocial ?? '';
+        const direccion = response.direccionCompleta || response.direccion || '';
+        this.proveedorForm.patchValue({
+          ruc: response.ruc,
+          razonSocial,
+          direccion,
+        });
+        this.proveedorForm.controls.razonSocial.markAsTouched();
+        this.proveedorForm.controls.direccion.markAsTouched();
+
+        if (!razonSocial || !direccion) {
+          this.errorRuc = 'La consulta no devolvió razón social o dirección.';
+          this.mostrarToast('La consulta no devolvió todos los datos necesarios.', 'error');
+          return;
+        }
+
+        this.mostrarToast('RUC consultado. Razón social y dirección completadas.', 'success');
+      },
+      error: (error: unknown) => {
+        const message = getApiErrorMessage(error);
+        this.errorRuc = message;
+        this.proveedorForm.controls.ruc.markAsTouched();
+        this.mostrarToast(message, 'error');
+        this.consultandoRuc = false;
+      },
+      complete: () => {
+        this.consultandoRuc = false;
+      },
+    });
+  }
+
+  guardarProveedor(): void {
+    if (this.enviando) return;
+
+    if (this.proveedorForm.invalid) {
+      this.proveedorForm.markAllAsTouched();
+      this.mostrarToast('Revisa los campos marcados antes de guardar.', 'error');
       return;
     }
 
-    this.isSubmitting = true;
+    const value = this.proveedorForm.getRawValue();
+    const request = {
+      razonSocial: this.normalizarTexto(value.razonSocial),
+      ruc: value.ruc.replace(/\D/g, ''),
+      celular: this.normalizarDigitosOpcional(value.celular),
+      telefono: this.normalizarDigitosOpcional(value.telefono),
+      email: this.normalizarEmailOpcional(value.email),
+      direccion: this.normalizarTexto(value.direccion),
+    };
 
-    try {
-      const value = this.providerForm.getRawValue();
-      const normalizedBusinessName = this.normalizeText(value.businessName);
-      const normalizedContact = this.normalizeText(value.contact);
-      const normalizedAddress = this.normalizeText(value.address);
-      const normalizedRuc = value.ruc.replace(/\D/g, '').trim();
-      const normalizedPhone = value.phone.replace(/\D/g, '').trim();
-      const normalizedEmail = value.email.trim().toLowerCase().replace(/\s+/g, '');
+    this.enviando = true;
+    const request$ = this.editandoId
+      ? this.proveedoresService.actualizar(this.editandoId, {
+          ...request,
+          estado: this.proveedores.find((proveedor) => proveedor.id === this.editandoId)?.estado ?? 'ACTIVO',
+        })
+      : this.proveedoresService.crear(request);
 
-      const rucExists = this.providers.some((p) => p.ruc === normalizedRuc && p.id !== this.editingId);
-      if (rucExists) {
-        this.feedback = 'El RUC ya existe.';
-        return;
-      }
-
-      const emailExists = this.providers.some((p) => p.email === normalizedEmail && p.id !== this.editingId);
-      if (emailExists) {
-        this.feedback = 'El correo ya existe.';
-        return;
-      }
-
-      if (this.editingId) {
-        this.providers = this.providers.map((item) =>
-          item.id === this.editingId
-            ? {
-                ...item,
-                businessName: normalizedBusinessName,
-                ruc: normalizedRuc,
-                contact: normalizedContact,
-                phone: normalizedPhone,
-                email: normalizedEmail,
-                address: normalizedAddress,
-              }
-            : item
+    request$.subscribe({
+      next: () => {
+        this.enviando = false;
+        this.mostrarToast(
+          this.editandoId ? 'Proveedor actualizado correctamente.' : 'Proveedor registrado correctamente.',
+          'success'
         );
-        this.feedback = 'Proveedor actualizado correctamente.';
-      } else {
-        const item: ProviderItem = {
-          id: crypto.randomUUID(),
-          businessName: normalizedBusinessName,
-          ruc: normalizedRuc,
-          contact: normalizedContact,
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          address: normalizedAddress,
-          status: 'ACTIVO',
-          createdAt: new Date().toISOString(),
-        };
-        this.providers = [item, ...this.providers];
-        this.feedback = 'Proveedor registrado correctamente.';
-      }
-
-      this.persist();
-      this.cancelEdit();
-    } finally {
-      this.isSubmitting = false;
-    }
-  }
-
-  editProvider(item: ProviderItem): void {
-    this.editingId = item.id;
-    this.providerForm.setValue({
-      businessName: item.businessName,
-      ruc: item.ruc,
-      contact: item.contact,
-      phone: item.phone,
-      email: item.email,
-      address: item.address,
+        this.cancelarEdicion();
+        this.cargarProveedores();
+      },
+      error: (error: unknown) => {
+        this.enviando = false;
+        this.mostrarToast(getApiErrorMessage(error), 'error');
+      },
     });
-    this.feedback = `Editando proveedor ${item.businessName}.`;
   }
 
-  cancelEdit(): void {
-    this.editingId = null;
-    this.providerForm.reset({
-      businessName: '',
+  editarProveedor(proveedor: ProveedorResponse): void {
+    this.editandoId = proveedor.id;
+    this.mostrarModal = true;
+    this.proveedorForm.setValue({
+      razonSocial: proveedor.razonSocial,
+      ruc: proveedor.ruc,
+      celular: proveedor.celular ?? '',
+      telefono: proveedor.telefono ?? '',
+      email: proveedor.email ?? '',
+      direccion: proveedor.direccion,
+    });
+    this.mostrarToast(`Editando proveedor ${proveedor.razonSocial}.`, 'success');
+  }
+
+  cancelarEdicion(): void {
+    this.mostrarModal = false;
+    this.mensaje = '';
+    this.errorRuc = '';
+    this.editandoId = null;
+    this.proveedorForm.reset({
+      razonSocial: '',
       ruc: '',
-      contact: '',
-      phone: '',
+      celular: '',
+      telefono: '',
       email: '',
-      address: '',
+      direccion: '',
     });
   }
 
-  toggleStatus(id: string): void {
-    this.providers = this.providers.map((item) =>
-      item.id === id ? { ...item, status: item.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO' } : item
-    );
-    this.persist();
+  cambiarEstadoProveedor(proveedor: ProveedorResponse): void {
+    if (proveedor.estado === 'ACTIVO') {
+      this.proveedoresService.inactivar(proveedor.id).subscribe({
+        next: () => {
+          this.mostrarToast('Proveedor desactivado correctamente.', 'success');
+          this.cargarProveedores();
+        },
+        error: (error: unknown) => {
+          this.mostrarToast(getApiErrorMessage(error), 'error');
+        },
+      });
+      return;
+    }
+
+    this.proveedoresService
+      .actualizar(proveedor.id, {
+        razonSocial: proveedor.razonSocial,
+        ruc: proveedor.ruc,
+        celular: proveedor.celular ?? null,
+        telefono: proveedor.telefono ?? null,
+        email: proveedor.email ?? null,
+        direccion: proveedor.direccion,
+        estado: 'ACTIVO',
+      })
+      .subscribe({
+        next: () => {
+          this.mostrarToast('Proveedor activado correctamente.', 'success');
+          this.cargarProveedores();
+        },
+        error: (error: unknown) => {
+          this.mostrarToast(getApiErrorMessage(error), 'error');
+        },
+      });
   }
 
   onRucInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const digits = input.value.replace(/\D/g, '').slice(0, 11);
-    this.providerForm.controls.ruc.setValue(digits, { emitEvent: false });
+    this.proveedorForm.controls.ruc.setValue(digits, { emitEvent: false });
+    this.errorRuc = '';
   }
 
-  onPhoneInput(event: Event): void {
+  onTelefonoInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const digits = input.value.replace(/\D/g, '').slice(0, 9);
-    this.providerForm.controls.phone.setValue(digits, { emitEvent: false });
+    this.proveedorForm.controls.telefono.setValue(digits, { emitEvent: false });
   }
 
-  onContactInput(event: Event): void {
+  onCelularInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const digits = input.value.replace(/\D/g, '').slice(0, 9);
-    this.providerForm.controls.contact.setValue(digits, { emitEvent: false });
+    this.proveedorForm.controls.celular.setValue(digits, { emitEvent: false });
   }
 
   onEmailInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const cleaned = input.value.replace(/\s+/g, '').toLowerCase();
-    this.providerForm.controls.email.setValue(cleaned, { emitEvent: false });
+    this.proveedorForm.controls.email.setValue(cleaned, { emitEvent: false });
   }
 
-  onAddressInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const cleaned = input.value.replace(/\s{2,}/g, ' ');
-    this.providerForm.controls.address.setValue(cleaned, { emitEvent: false });
+  puedeGuardar(): boolean {
+    return this.proveedorForm.valid && !this.enviando && !this.consultandoRuc;
   }
 
-  canSubmit(): boolean {
-    return this.providerForm.valid && !this.isSubmitting;
+  estadoClase(status: EstadoProveedor): string {
+    return status === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
   }
 
-  statusBadgeClass(status: ProviderStatus): string {
-    return status === 'ACTIVO' ? 'badge text-bg-success' : 'badge text-bg-secondary';
+  toastClass(): string {
+    return this.toastType === 'success'
+      ? 'border-green-200 bg-green-50 text-green-800'
+      : 'border-red-200 bg-red-50 text-red-800';
   }
 
-  private loadProviders(): void {
-    const raw = localStorage.getItem(PROVIDERS_KEY);
-    if (!raw) {
-      this.providers = this.seedProviders();
-      this.persist();
-      return;
+  fieldError(controlName: keyof typeof this.proveedorForm.controls): string {
+    const control = this.proveedorForm.controls[controlName];
+    if (!control.touched || !control.errors) return '';
+
+    if (control.errors['required']) return 'Este campo es obligatorio.';
+    if (control.errors['pattern']) {
+      if (controlName === 'ruc') return 'El RUC debe tener 11 dígitos.';
+      if (controlName === 'celular') return 'El celular debe tener 9 dígitos.';
+      if (controlName === 'telefono') return 'El teléfono debe tener 9 dígitos.';
     }
+    if (control.errors['email']) return 'Ingrese un correo válido.';
+    if (control.errors['minlength']) return 'El valor ingresado es demasiado corto.';
+    if (control.errors['maxlength']) return 'El valor ingresado es demasiado largo.';
 
-    try {
-      const parsed = JSON.parse(raw) as ProviderItem[];
-      this.providers = Array.isArray(parsed) ? parsed : this.seedProviders();
-    } catch {
-      this.providers = this.seedProviders();
-    }
+    return 'Revise este campo.';
   }
 
-  private persist(): void {
-    localStorage.setItem(PROVIDERS_KEY, JSON.stringify(this.providers));
+  private mostrarToast(message: string, type: ToastType): void {
+    this.toastMessage = message;
+    this.toastType = type;
+
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      this.toastMessage = '';
+      this.toastTimer = null;
+    }, 3500);
   }
 
-  private normalizeText(value: string): string {
+  private normalizarTexto(value: string): string {
     return value.trim().replace(/\s{2,}/g, ' ');
   }
 
-  private seedProviders(): ProviderItem[] {
-    return [
-      {
-        id: crypto.randomUUID(),
-        businessName: 'Nova Import SAC',
-        ruc: '20609998881',
-        contact: '987654321',
-        phone: '987654321',
-        email: 'ventas@novaimport.pe',
-        address: 'Av. Industrial 450, Lima',
-        status: 'ACTIVO',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: crypto.randomUUID(),
-        businessName: 'Andes Supply EIRL',
-        ruc: '20607776661',
-        contact: '976543210',
-        phone: '976543210',
-        email: 'contacto@andessupply.pe',
-        address: 'Jr. Comercio 112, Arequipa',
-        status: 'ACTIVO',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+  private normalizarDigitosOpcional(value: string): string | null {
+    const digits = value.replace(/\D/g, '');
+    return digits ? digits : null;
+  }
+
+  private normalizarEmailOpcional(value: string): string | null {
+    const email = value.trim().toLowerCase().replace(/\s+/g, '');
+    return email ? email : null;
   }
 }

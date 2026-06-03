@@ -1,247 +1,178 @@
+import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { DatePipe } from '@angular/common';
-
-type UserRole = 'ADMINISTRADOR' | 'ALMACENERO' | 'SUPERVISOR';
-type UserStatus = 'ACTIVO' | 'INACTIVO';
-
-interface UserItem {
-  id: string;
-  fullName: string;
-  email: string;
-  role: UserRole;
-  status: UserStatus;
-  password: string;
-  createdAt: string;
-}
-
-const USERS_KEY = 'titishop_usuarios';
-const DEFAULT_PASSWORD = '123456';
+import { getApiErrorMessage } from '../../core/api-error';
+import { EstadoCarga } from '../../core/estado-carga';
+import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
+import { UsuariosService } from './usuarios.service';
 
 @Component({
-  selector: 'app-users',
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-usuarios',
   imports: [ReactiveFormsModule, DatePipe],
-  templateUrl: './users.html',
-  styleUrl: './users.scss',
+  templateUrl: './usuarios.html',
+  styleUrl: './usuarios.scss',
 })
-export class Users {
-  feedback = '';
-  editingUserId: string | null = null;
+export class Usuarios {
+  mensaje = '';
+  errorListado = '';
+  estadoListado: EstadoCarga = 'inicial';
+  usuarioEditandoId: string | null = null;
+  mostrarModal = false;
+  enviando = false;
 
-  readonly roles: UserRole[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
-  users: UserItem[] = [];
-  readonly userForm;
+  readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
+  usuarios: UsuarioResponse[] = [];
+  readonly usuarioForm;
   private readonly namePattern = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
 
-  constructor(private fb: FormBuilder) {
-    this.userForm = this.fb.nonNullable.group({
-      fullName: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/)]],
-      email: ['', [Validators.required, Validators.email]],
-      role: ['ALMACENERO' as UserRole, [Validators.required]],
-      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(32)]],
+  constructor(
+    private fb: FormBuilder,
+    private usuariosService: UsuariosService
+  ) {
+    this.usuarioForm = this.fb.nonNullable.group({
+      nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120), Validators.pattern(this.namePattern)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(160)]],
+      rol: ['ALMACENERO' as RolUsuario, [Validators.required]],
+      password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(120)]],
     });
-    this.loadUsers();
+    this.cargarUsuarios();
   }
 
-  get canSubmit(): boolean {
-    return this.userForm.valid;
+  get puedeGuardar(): boolean {
+    return this.usuarioForm.valid && !this.enviando;
   }
 
-  saveUser(): void {
-    if (this.userForm.invalid) {
-      this.userForm.markAllAsTouched();
-      this.feedback = 'Completa correctamente los campos requeridos.';
-      return;
-    }
-
-    const formValue = this.userForm.getRawValue();
-    const normalizedName = formValue.fullName.trim().replace(/\s+/g, ' ');
-    const normalizedEmail = formValue.email.trim().toLowerCase();
-    const normalizedPassword = formValue.password.trim();
-
-    if (!this.namePattern.test(normalizedName)) {
-      this.feedback = 'El nombre solo puede contener letras y espacios.';
-      return;
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    if (!emailPattern.test(normalizedEmail)) {
-      this.feedback = 'Ingrese un correo electrónico válido.';
-      return;
-    }
-
-    if (!this.editingUserId && normalizedPassword.length < 6) {
-      this.feedback = 'La contraseña debe tener al menos 6 caracteres.';
-      return;
-    }
-
-    const duplicated = this.users.find(
-      (user) => user.email.toLowerCase() === normalizedEmail && user.id !== this.editingUserId
-    );
-
-    if (duplicated) {
-      this.feedback = 'Ya existe un usuario con ese correo.';
-      return;
-    }
-
-    if (this.editingUserId) {
-      this.users = this.users.map((user) =>
-        user.id === this.editingUserId
-          ? {
-              ...user,
-              fullName: normalizedName,
-              email: normalizedEmail,
-              role: formValue.role,
-              password: normalizedPassword ? normalizedPassword : user.password,
-            }
-          : user
-      );
-      this.feedback = 'Usuario actualizado correctamente.';
-    } else {
-      const newUser: UserItem = {
-        id: crypto.randomUUID(),
-        fullName: normalizedName,
-        email: normalizedEmail,
-        role: formValue.role,
-        status: 'ACTIVO',
-        password: normalizedPassword,
-        createdAt: new Date().toISOString(),
-      };
-      this.users = [newUser, ...this.users];
-      this.feedback = 'Usuario registrado correctamente.';
-    }
-
-    this.persistUsers();
-    this.cancelEdit();
+  cargarUsuarios(): void {
+    this.estadoListado = 'cargando';
+    this.errorListado = '';
+    this.usuariosService.listar().subscribe({
+      next: (usuarios) => {
+        this.usuarios = usuarios;
+        this.estadoListado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estadoListado = 'error';
+        this.errorListado = getApiErrorMessage(error);
+      },
+    });
   }
 
-  editUser(user: UserItem): void {
-    this.editingUserId = user.id;
-    this.userForm.setValue({
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,
+  guardarUsuario(): void {
+    if (this.usuarioForm.invalid) {
+      this.usuarioForm.markAllAsTouched();
+      this.mensaje = 'Completa correctamente los campos requeridos.';
+      return;
+    }
+
+    const value = this.usuarioForm.getRawValue();
+    const base = {
+      nombreCompleto: value.nombreCompleto.trim().replace(/\s+/g, ' '),
+      email: value.email.trim().toLowerCase(),
+      rol: value.rol,
+    };
+    this.enviando = true;
+
+    const request$ = this.usuarioEditandoId
+      ? this.usuariosService.actualizar(this.usuarioEditandoId, {
+          ...base,
+          password: value.password.trim() || null,
+          estado: this.usuarios.find((usuario) => usuario.id === this.usuarioEditandoId)?.estado ?? 'ACTIVO',
+        })
+      : this.usuariosService.crear({
+          ...base,
+          password: value.password.trim(),
+        });
+
+    request$.subscribe({
+      next: () => {
+        this.enviando = false;
+        this.mensaje = this.usuarioEditandoId
+          ? 'Usuario actualizado correctamente.'
+          : 'Usuario registrado correctamente.';
+        this.cancelarEdicion();
+        this.cargarUsuarios();
+      },
+      error: (error: unknown) => {
+        this.enviando = false;
+        this.mensaje = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  editarUsuario(usuario: UsuarioResponse): void {
+    this.usuarioEditandoId = usuario.id;
+    this.mostrarModal = true;
+    this.usuarioForm.setValue({
+      nombreCompleto: usuario.nombreCompleto,
+      email: usuario.email,
+      rol: usuario.rol,
       password: '',
     });
-    this.userForm.controls.password.clearValidators();
-    this.userForm.controls.password.setValidators([Validators.minLength(6), Validators.maxLength(32)]);
-    this.userForm.controls.password.updateValueAndValidity();
-    this.feedback = `Editando a ${user.fullName}.`;
+    this.usuarioForm.controls.password.clearValidators();
+    this.usuarioForm.controls.password.setValidators([Validators.minLength(8), Validators.maxLength(120)]);
+    this.usuarioForm.controls.password.updateValueAndValidity();
+    this.mensaje = `Editando a ${usuario.nombreCompleto}.`;
   }
 
-  cancelEdit(): void {
-    this.editingUserId = null;
-    this.userForm.reset({
-      fullName: '',
+  cancelarEdicion(): void {
+    this.mostrarModal = false;
+    this.usuarioEditandoId = null;
+    this.usuarioForm.reset({
+      nombreCompleto: '',
       email: '',
-      role: 'ALMACENERO',
+      rol: 'ALMACENERO',
       password: '',
     });
-    this.userForm.controls.password.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(32)]);
-    this.userForm.controls.password.updateValueAndValidity();
+    this.usuarioForm.controls.password.setValidators([Validators.required, Validators.minLength(8), Validators.maxLength(120)]);
+    this.usuarioForm.controls.password.updateValueAndValidity();
   }
 
-  toggleStatus(userId: string): void {
-    this.users = this.users.map((user) =>
-      user.id === userId
-        ? { ...user, status: user.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO' }
-        : user
-    );
-    this.persistUsers();
-    if (this.editingUserId) {
-      this.feedback = 'Estado de usuario actualizado.';
+  cambiarEstadoUsuario(usuario: UsuarioResponse): void {
+    if (usuario.estado === 'ACTIVO') {
+      this.usuariosService.inactivar(usuario.id).subscribe({
+        next: () => {
+          this.mensaje = 'Usuario desactivado correctamente.';
+          this.cargarUsuarios();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
+      return;
     }
+
+    this.usuariosService
+      .actualizar(usuario.id, {
+        nombreCompleto: usuario.nombreCompleto,
+        email: usuario.email,
+        password: null,
+        rol: usuario.rol,
+        estado: 'ACTIVO',
+      })
+      .subscribe({
+        next: () => {
+          this.mensaje = 'Usuario activado correctamente.';
+          this.cargarUsuarios();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
   }
 
-  statusBadgeClass(status: UserStatus): string {
-    return status === 'ACTIVO' ? 'badge text-bg-success' : 'badge text-bg-secondary';
+  estadoClase(status: EstadoCatalogo): string {
+    return status === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
   }
 
-  onNameInput(event: Event): void {
+  onNombreInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const sanitized = input.value
       .replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '')
       .replace(/\s{2,}/g, ' ');
     if (sanitized !== input.value) {
       input.value = sanitized;
-      this.userForm.controls.fullName.setValue(sanitized, { emitEvent: false });
+      this.usuarioForm.controls.nombreCompleto.setValue(sanitized, { emitEvent: false });
     }
-  }
-
-  private loadUsers(): void {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (!raw) {
-      this.users = this.seedUsers();
-      this.persistUsers();
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Array<Partial<UserItem> & { active?: boolean }>;
-      if (!Array.isArray(parsed)) {
-        this.users = this.seedUsers();
-        return;
-      }
-
-      this.users = parsed.map((user) => {
-        const active = typeof user.active === 'boolean' ? user.active : user.status === 'ACTIVO';
-        return {
-          id: user.id ?? crypto.randomUUID(),
-          fullName: user.fullName ?? 'Usuario sin nombre',
-          email: (user.email ?? '').toLowerCase(),
-          role: (user.role as UserRole) ?? 'ALMACENERO',
-          status: active ? 'ACTIVO' : 'INACTIVO',
-          password: user.password ?? DEFAULT_PASSWORD,
-          createdAt: user.createdAt ?? new Date().toISOString(),
-        };
-      });
-    } catch {
-      this.users = this.seedUsers();
-    }
-  }
-
-  private persistUsers(): void {
-    const usersForAuth = this.users.map((user) => ({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      password: user.password,
-      role: user.role,
-      active: user.status === 'ACTIVO',
-      createdAt: user.createdAt,
-    }));
-    localStorage.setItem(USERS_KEY, JSON.stringify(usersForAuth));
-  }
-
-  private seedUsers(): UserItem[] {
-    return [
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Admin TitiShop',
-        email: 'admin@titishop.pe',
-        role: 'ADMINISTRADOR',
-        status: 'ACTIVO',
-        password: DEFAULT_PASSWORD,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Almacén Principal',
-        email: 'almacen@titishop.pe',
-        role: 'ALMACENERO',
-        status: 'ACTIVO',
-        password: DEFAULT_PASSWORD,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: crypto.randomUUID(),
-        fullName: 'Sonia Supervisora',
-        email: 'supervisor@titishop.pe',
-        role: 'SUPERVISOR',
-        status: 'ACTIVO',
-        password: DEFAULT_PASSWORD,
-        createdAt: new Date().toISOString(),
-      },
-    ];
   }
 }

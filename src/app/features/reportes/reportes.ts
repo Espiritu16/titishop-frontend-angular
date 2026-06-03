@@ -1,161 +1,174 @@
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { forkJoin } from 'rxjs';
+import { getApiErrorMessage } from '../../core/api-error';
+import { EstadoCarga } from '../../core/estado-carga';
+import {
+  EstadoInventario,
+  ReporteMovimientosResponse,
+  ReporteStockCriticoResponse,
+  ReporteStockResponse,
+  ReporteValorizacionResponse,
+  TipoMovimiento,
+} from '../../core/models';
+import { ReportesService } from './reportes.service';
 
-type MovementType = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
-
-interface ReportMovement {
-  id: string;
-  date: string;
-  type: MovementType;
-  product: string;
-  sku: string;
-  provider: string;
-  quantity: number;
-  reason: string;
-  user: string;
-}
-
-const MOVEMENTS_KEY = 'titishop_movimientos';
-const PRODUCTS_KEY = 'titishop_productos';
-const PROVIDERS_KEY = 'titishop_proveedores';
+type PestanaReporte = 'movimientos' | 'stock' | 'critico' | 'valorizacion';
 
 @Component({
-  selector: 'app-reports',
-  imports: [ReactiveFormsModule, DatePipe],
-  templateUrl: './reports.html',
-  styleUrl: './reports.scss',
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-reportes',
+  imports: [ReactiveFormsModule, DatePipe, DecimalPipe, CurrencyPipe],
+  templateUrl: './reportes.html',
+  styleUrl: './reportes.scss',
 })
-export class Reports {
-  readonly movementTypes: Array<MovementType | 'TODOS'> = ['TODOS', 'ENTRADA', 'SALIDA', 'AJUSTE'];
-  providers: string[] = ['Todos'];
-  products: string[] = ['Todos'];
-  filteredProducts: string[] = [];
-  showProductSuggestions = false;
+export class Reportes {
+  pestanaActiva: PestanaReporte = 'movimientos';
+  estado: EstadoCarga = 'inicial';
+  error = '';
 
-  readonly filterForm;
-  allMovements: ReportMovement[] = [];
+  readonly tiposMovimiento: Array<TipoMovimiento | 'TODOS'> = ['TODOS', 'ENTRADA', 'SALIDA', 'AJUSTE'];
+  readonly estadosInventario: Array<EstadoInventario | 'TODOS'> = ['TODOS', 'ACTIVO', 'INACTIVO'];
 
-  constructor(private fb: FormBuilder) {
-    this.filterForm = this.fb.nonNullable.group({
-      fromDate: [''],
-      toDate: [''],
-      type: ['TODOS' as MovementType | 'TODOS'],
-      provider: ['Todos'],
-      product: [''],
+  movimientos: ReporteMovimientosResponse[] = [];
+  stock: ReporteStockResponse[] = [];
+  stockCritico: ReporteStockCriticoResponse[] = [];
+  valorizacion: ReporteValorizacionResponse | null = null;
+
+  readonly filtrosMovimientos;
+  readonly filtrosStock;
+
+  constructor(
+    private fb: FormBuilder,
+    private reportesService: ReportesService
+  ) {
+    this.filtrosMovimientos = this.fb.nonNullable.group({
+      fechaInicio: [''],
+      fechaFin: [''],
+      tipo: ['TODOS' as TipoMovimiento | 'TODOS'],
+      incluirAnulados: [false],
     });
-    this.loadMovements();
-  }
-
-  get filteredMovements(): ReportMovement[] {
-    const { fromDate, toDate, type, provider, product } = this.filterForm.getRawValue();
-    const from = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
-    const to = toDate ? new Date(`${toDate}T23:59:59`) : null;
-
-    return this.allMovements.filter((movement) => {
-      const movementDate = new Date(movement.date);
-      if (from && movementDate < from) return false;
-      if (to && movementDate > to) return false;
-      if (type !== 'TODOS' && movement.type !== type) return false;
-      if (provider !== 'Todos' && movement.provider !== provider) return false;
-      const normalizedProduct = product.trim().toLowerCase();
-      if (normalizedProduct && normalizedProduct !== 'todos' && movement.product.toLowerCase() !== normalizedProduct) return false;
-      return true;
+    this.filtrosStock = this.fb.nonNullable.group({
+      estado: ['TODOS' as EstadoInventario | 'TODOS'],
+      busqueda: [''],
     });
+    this.cargarReportes();
   }
 
   get totalEntradas(): number {
-    return this.filteredMovements.filter((m) => m.type === 'ENTRADA').reduce((acc, curr) => acc + curr.quantity, 0);
+    return this.movimientos
+      .filter((movimiento) => movimiento.tipo === 'ENTRADA' && !movimiento.anulado)
+      .reduce((total, movimiento) => total + movimiento.cantidad, 0);
   }
 
   get totalSalidas(): number {
-    return this.filteredMovements.filter((m) => m.type === 'SALIDA').reduce((acc, curr) => acc + curr.quantity, 0);
+    return this.movimientos
+      .filter((movimiento) => movimiento.tipo === 'SALIDA' && !movimiento.anulado)
+      .reduce((total, movimiento) => total + movimiento.cantidad, 0);
   }
 
   get totalAjustes(): number {
-    return this.filteredMovements.filter((m) => m.type === 'AJUSTE').reduce((acc, curr) => acc + curr.quantity, 0);
+    return this.movimientos
+      .filter((movimiento) => movimiento.tipo === 'AJUSTE' && !movimiento.anulado)
+      .reduce((total, movimiento) => total + movimiento.cantidad, 0);
   }
 
-  clearFilters(): void {
-    this.filterForm.reset({
-      fromDate: '',
-      toDate: '',
-      type: 'TODOS',
-      provider: 'Todos',
-      product: '',
+  cargarReportes(): void {
+    this.estado = 'cargando';
+    this.error = '';
+
+    forkJoin({
+      movimientos: this.reportesService.movimientos(this.filtrosMovimientoRequest()),
+      stock: this.reportesService.stock(this.filtrosStockRequest()),
+      stockCritico: this.reportesService.stockCritico(),
+      valorizacion: this.reportesService.valorizacion(),
+    }).subscribe({
+      next: ({ movimientos, stock, stockCritico, valorizacion }) => {
+        this.movimientos = movimientos;
+        this.stock = stock;
+        this.stockCritico = stockCritico;
+        this.valorizacion = valorizacion;
+        this.estado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estado = 'error';
+        this.error = getApiErrorMessage(error);
+      },
     });
-    this.filteredProducts = [...this.products];
-    this.showProductSuggestions = false;
   }
 
-  movementBadgeClass(type: MovementType): string {
-    if (type === 'ENTRADA') return 'badge text-bg-success';
-    if (type === 'SALIDA') return 'badge text-bg-primary';
-    return 'badge text-bg-secondary';
+  aplicarFiltrosMovimientos(): void {
+    this.estado = 'cargando';
+    this.reportesService.movimientos(this.filtrosMovimientoRequest()).subscribe({
+      next: (movimientos) => {
+        this.movimientos = movimientos;
+        this.estado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estado = 'error';
+        this.error = getApiErrorMessage(error);
+      },
+    });
   }
 
-  private loadMovements(): void {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(MOVEMENTS_KEY) ?? '[]') as Array<Partial<ReportMovement>>;
-      this.allMovements = Array.isArray(parsed)
-        ? parsed.map((item) => ({
-            id: item.id ?? crypto.randomUUID(),
-            date: item.date ?? new Date().toISOString(),
-            type: (item.type as MovementType) ?? 'ENTRADA',
-            product: item.product ?? '',
-            sku: item.sku ?? '',
-            provider: item.provider ?? '-',
-            quantity: Number(item.quantity ?? 0),
-            reason: item.reason ?? '',
-            user: item.user ?? '',
-          }))
-        : [];
-    } catch {
-      this.allMovements = [];
-    }
-
-    const productsSet = new Set(this.allMovements.map((item) => item.product).filter(Boolean));
-    const providersSet = new Set(this.allMovements.map((item) => item.provider).filter((p) => !!p && p !== '-'));
-
-    try {
-      const catalogProducts = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ name?: string }>;
-      catalogProducts.forEach((product) => {
-        if (product?.name?.trim()) productsSet.add(product.name.trim());
-      });
-    } catch {}
-
-    try {
-      const catalogProviders = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? '[]') as Array<{ businessName?: string; status?: string }>;
-      catalogProviders.forEach((provider) => {
-        if ((provider?.status ?? 'ACTIVO') === 'ACTIVO' && provider?.businessName?.trim()) {
-          providersSet.add(provider.businessName.trim());
-        }
-      });
-    } catch {}
-
-    this.products = ['Todos', ...Array.from(productsSet).sort((a, b) => a.localeCompare(b))];
-    this.providers = ['Todos', ...Array.from(providersSet).sort((a, b) => a.localeCompare(b))];
-    this.filteredProducts = [...this.products];
+  aplicarFiltrosStock(): void {
+    this.estado = 'cargando';
+    this.reportesService.stock(this.filtrosStockRequest()).subscribe({
+      next: (stock) => {
+        this.stock = stock;
+        this.estado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estado = 'error';
+        this.error = getApiErrorMessage(error);
+      },
+    });
   }
 
-  onProductFilterInput(): void {
-    const query = this.filterForm.controls.product.value.trim().toLowerCase();
-    if (!query) {
-      this.filteredProducts = [...this.products];
-      this.showProductSuggestions = true;
-      return;
-    }
-    this.filteredProducts = this.products.filter((item) => item.toLowerCase().includes(query));
-    this.showProductSuggestions = this.filteredProducts.length > 0;
+  limpiarFiltrosMovimientos(): void {
+    this.filtrosMovimientos.reset({
+      fechaInicio: '',
+      fechaFin: '',
+      tipo: 'TODOS',
+      incluirAnulados: false,
+    });
+    this.aplicarFiltrosMovimientos();
   }
 
-  onProductFilterFocus(): void {
-    this.filteredProducts = [...this.products];
-    this.showProductSuggestions = this.filteredProducts.length > 0;
+  limpiarFiltrosStock(): void {
+    this.filtrosStock.reset({
+      estado: 'TODOS',
+      busqueda: '',
+    });
+    this.aplicarFiltrosStock();
   }
 
-  selectProductFilter(product: string): void {
-    this.filterForm.patchValue({ product });
-    this.showProductSuggestions = false;
+  movimientoClase(tipo: TipoMovimiento): string {
+    if (tipo === 'ENTRADA') return 'bg-green-100 text-green-700';
+    if (tipo === 'SALIDA') return 'bg-blue-100 text-blue-700';
+    return 'bg-gray-100 text-gray-600';
+  }
+
+  stockClase(item: ReporteStockResponse): string {
+    return item.stockCritico ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+  }
+
+  private filtrosMovimientoRequest() {
+    const filtros = this.filtrosMovimientos.getRawValue();
+    return {
+      fechaInicio: filtros.fechaInicio || null,
+      fechaFin: filtros.fechaFin || null,
+      tipo: filtros.tipo === 'TODOS' ? null : filtros.tipo,
+      incluirAnulados: filtros.incluirAnulados,
+    };
+  }
+
+  private filtrosStockRequest() {
+    const filtros = this.filtrosStock.getRawValue();
+    return {
+      estado: filtros.estado === 'TODOS' ? null : filtros.estado,
+      busqueda: filtros.busqueda.trim() || null,
+    };
   }
 }

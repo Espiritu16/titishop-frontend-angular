@@ -1,257 +1,213 @@
-import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
+import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
-
-type MovementType = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
-
-interface MovementItem {
-  id: string;
-  createdAt: string;
-  type: MovementType;
-  product: string;
-  sku: string;
-  provider: string;
-  quantity: number;
-  reason: string;
-  user: string;
-}
-
-interface StockItem {
-  sku: string;
-  product: string;
-  stock: number;
-}
-
-interface ProductRef {
-  sku: string;
-  name: string;
-}
-
-const MOVEMENTS_KEY = 'titishop_movimientos';
-const STOCK_KEY = 'titishop_stock';
-const PRODUCTS_KEY = 'titishop_productos';
-const PROVIDERS_KEY = 'titishop_proveedores';
+import { EstadoCarga } from '../../core/estado-carga';
+import { MovimientoResponse, ProductoResponse, ProveedorResponse, TipoMovimiento } from '../../core/models';
+import { ProductosService } from '../productos/productos.service';
+import { ProveedoresService } from '../proveedores/proveedores.service';
+import { MovimientosService } from './movimientos.service';
 
 @Component({
-  selector: 'app-movements',
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-movimientos',
   imports: [ReactiveFormsModule, DatePipe],
-  templateUrl: './movements.html',
-  styleUrl: './movements.scss',
+  templateUrl: './movimientos.html',
+  styleUrl: './movimientos.scss',
 })
-export class Movements {
-  feedback = '';
-  isSubmitting = false;
-  private lastSubmitAt = 0;
+export class Movimientos {
+  mensaje = '';
+  errorListado = '';
+  estadoListado: EstadoCarga = 'inicial';
+  enviando = false;
+  mostrarModal = false;
 
-  movements: MovementItem[] = [];
-  stock: StockItem[] = [];
-  productsRef: ProductRef[] = [];
-  providersRef: string[] = [];
-  filteredProducts: ProductRef[] = [];
-  showProductSuggestions = false;
+  movimientos: MovimientoResponse[] = [];
+  productos: ProductoResponse[] = [];
+  proveedores: ProveedorResponse[] = [];
 
-  readonly movementTypes: MovementType[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
-
-  readonly movementForm;
+  readonly tiposMovimiento: TipoMovimiento[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
+  readonly movimientoForm;
 
   constructor(
     private fb: FormBuilder,
+    private movimientosService: MovimientosService,
+    private productosService: ProductosService,
+    private proveedoresService: ProveedoresService,
     public auth: AuthService
   ) {
-    this.movementForm = this.fb.nonNullable.group({
-      type: ['ENTRADA' as MovementType, [Validators.required]],
-      product: ['', [Validators.required, Validators.minLength(3)]],
-      sku: ['', [Validators.required, Validators.minLength(3)]],
-      provider: [''],
-      quantity: [0, [Validators.required, Validators.min(1)]],
-      reason: ['', [Validators.required, Validators.minLength(4)]],
-      user: [this.auth.session()?.fullName ?? 'Operador', [Validators.required, Validators.minLength(3)]],
+    this.movimientoForm = this.fb.nonNullable.group({
+      tipo: ['ENTRADA' as TipoMovimiento, [Validators.required]],
+      productoId: ['', [Validators.required]],
+      proveedorId: [''],
+      cantidad: [1, [Validators.required, Validators.min(1)]],
+      stockDestino: [0, [Validators.min(0)]],
+      motivo: ['', [Validators.required, Validators.minLength(4), Validators.maxLength(255)]],
     });
-    this.movementForm.controls.type.valueChanges.subscribe((type) => {
-      if (type === 'ENTRADA') {
-        this.movementForm.controls.provider.enable({ emitEvent: false });
-      } else {
-        this.movementForm.controls.provider.setValue('', { emitEvent: false });
-        this.movementForm.controls.provider.disable({ emitEvent: false });
-      }
+    this.movimientoForm.controls.tipo.valueChanges.subscribe((tipo) => {
+      this.configurarTipoMovimiento(tipo);
     });
-    this.loadData();
+    this.configurarTipoMovimiento('ENTRADA');
+    this.cargarDatos();
   }
 
-  get canSubmit(): boolean {
-    const value = this.movementForm.getRawValue();
-    const hasValidReason = value.reason.trim().length >= 4;
-    const hasValidQuantity = Number.isFinite(value.quantity) && value.quantity > 0;
-    const hasProvider = value.type !== 'ENTRADA' || !!value.provider.trim();
-    return this.movementForm.valid && hasValidReason && hasValidQuantity && hasProvider;
+  get productosActivos(): ProductoResponse[] {
+    return this.productos.filter((producto) => producto.estado === 'ACTIVO');
   }
 
-  onProductInput(): void {
-    const query = this.movementForm.controls.product.value.trim().toLowerCase();
-    if (!query) {
-      this.filteredProducts = [];
-      this.showProductSuggestions = false;
+  get proveedoresActivos(): ProveedorResponse[] {
+    return this.proveedores.filter((proveedor) => proveedor.estado === 'ACTIVO');
+  }
+
+  get puedeGuardar(): boolean {
+    const value = this.movimientoForm.getRawValue();
+    const requiereProveedor = value.tipo === 'ENTRADA';
+    const requiereStockDestino = value.tipo === 'AJUSTE';
+    return (
+      this.movimientoForm.valid &&
+      !this.enviando &&
+      (!requiereProveedor || !!value.proveedorId) &&
+      (!requiereStockDestino || value.stockDestino >= 0)
+    );
+  }
+
+  cargarDatos(): void {
+    this.estadoListado = 'cargando';
+    this.errorListado = '';
+    forkJoin({
+      movimientos: this.movimientosService.listar(),
+      productos: this.productosService.listar(),
+      proveedores: this.proveedoresService.listar(),
+    }).subscribe({
+      next: ({ movimientos, productos, proveedores }) => {
+        this.movimientos = movimientos;
+        this.productos = productos;
+        this.proveedores = proveedores;
+        this.estadoListado = 'exito';
+      },
+      error: (error: unknown) => {
+        this.estadoListado = 'error';
+        this.errorListado = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  abrirModal(): void {
+    this.mostrarModal = true;
+    this.mensaje = '';
+  }
+
+  bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
+    if (['e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+  }
+
+  registrarMovimiento(): void {
+    if (this.enviando) return;
+    if (!this.puedeGuardar) {
+      this.movimientoForm.markAllAsTouched();
+      this.mensaje = 'Completa correctamente los campos obligatorios.';
       return;
     }
-    this.filteredProducts = this.productsRef.filter((item) => item.name.toLowerCase().includes(query)).slice(0, 8);
-    this.showProductSuggestions = this.filteredProducts.length > 0;
-  }
 
-  selectProduct(product: ProductRef): void {
-    this.movementForm.patchValue({
-      product: product.name,
-      sku: product.sku,
-    });
-    this.showProductSuggestions = false;
-  }
-
-  submitMovement(): void {
-    const now = Date.now();
-    if (this.isSubmitting) return;
-    if (now - this.lastSubmitAt < 400) return;
-    this.lastSubmitAt = now;
-
-    if (this.movementForm.invalid) {
-      this.movementForm.markAllAsTouched();
-      this.feedback = 'Completa correctamente los campos obligatorios.';
+    const value = this.movimientoForm.getRawValue();
+    const usuarioId = this.usuarioSesionId();
+    if (!usuarioId) {
+      this.mensaje = 'Inicia sesión para registrar movimientos.';
       return;
     }
 
-    this.isSubmitting = true;
-    try {
-      const value = this.movementForm.getRawValue();
-      const sku = value.sku.trim().toUpperCase();
-      const product = value.product.trim();
-      const provider = value.provider.trim();
-      const reason = value.reason.trim();
-      const quantity = value.quantity;
-
-      if (!reason || reason.length < 4) {
-        this.feedback = 'Ingrese un motivo válido (mínimo 4 caracteres).';
-        return;
-      }
-
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        this.feedback = 'Ingrese una cantidad mayor a cero.';
-        return;
-      }
-      if (value.type === 'ENTRADA' && !provider) {
-        this.feedback = 'Seleccione un proveedor para registrar una entrada.';
-        return;
-      }
-
-      const productExists = this.productsRef.some((item) => item.sku === sku && item.name.toLowerCase() === product.toLowerCase());
-      if (!productExists) {
-        this.feedback = 'Seleccione un producto válido del listado.';
-        return;
-      }
-
-      let stockItem = this.stock.find((item) => item.sku === sku);
-      if (!stockItem) {
-        stockItem = { sku, product, stock: 0 };
-        this.stock.push(stockItem);
-      } else {
-        stockItem.product = product;
-      }
-
-      if (value.type === 'SALIDA' && stockItem.stock < quantity) {
-        this.feedback = `Stock insuficiente. Disponible: ${stockItem.stock}.`;
-        return;
-      }
-
-      if (value.type === 'ENTRADA') {
-        stockItem.stock += quantity;
-      } else if (value.type === 'SALIDA') {
-        stockItem.stock -= quantity;
-      } else {
-        stockItem.stock = quantity;
-      }
-
-      const movement: MovementItem = {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        type: value.type,
-        product,
-        sku,
-        provider,
-        quantity,
-        reason,
-        user: value.user.trim(),
-      };
-
-      this.movements = [movement, ...this.movements];
-      this.persistData();
-      this.feedback = 'Movimiento registrado correctamente.';
-      this.movementForm.reset({
-        type: 'ENTRADA',
-        product: '',
-        sku: '',
-        provider: '',
-        quantity: 0,
-        reason: '',
-        user: this.auth.session()?.fullName ?? 'Operador',
+    this.enviando = true;
+    this.movimientosService
+      .registrar({
+        productoId: value.productoId,
+        proveedorId: value.tipo === 'ENTRADA' ? value.proveedorId : null,
+        usuarioId,
+        tipo: value.tipo,
+        cantidad: value.cantidad,
+        stockDestino: value.tipo === 'AJUSTE' ? value.stockDestino : null,
+        motivo: value.motivo.trim().replace(/\s{2,}/g, ' '),
+      })
+      .subscribe({
+        next: () => {
+          this.enviando = false;
+          this.mensaje = 'Movimiento registrado correctamente.';
+          this.cerrarModal();
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.enviando = false;
+          this.mensaje = getApiErrorMessage(error);
+        },
       });
-      this.filteredProducts = [];
-      this.showProductSuggestions = false;
-    } finally {
-      this.isSubmitting = false;
+  }
+
+  anularMovimiento(movimiento: MovimientoResponse): void {
+    const motivo = window.prompt('Motivo de anulación');
+    if (!motivo?.trim()) return;
+    const usuarioId = this.usuarioSesionId();
+    if (!usuarioId) {
+      this.mensaje = 'Inicia sesión para anular movimientos.';
+      return;
+    }
+
+    this.movimientosService
+      .anular(movimiento.id, {
+        usuarioId,
+        motivoAnulacion: motivo.trim().replace(/\s{2,}/g, ' '),
+      })
+      .subscribe({
+        next: () => {
+          this.mensaje = 'Movimiento anulado correctamente.';
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.movimientoForm.reset({
+      tipo: 'ENTRADA',
+      productoId: '',
+      proveedorId: '',
+      cantidad: 1,
+      stockDestino: 0,
+      motivo: '',
+    });
+    this.configurarTipoMovimiento('ENTRADA');
+  }
+
+  movimientoClase(type: TipoMovimiento): string {
+    if (type === 'ENTRADA') return 'bg-green-100 text-green-700';
+    if (type === 'SALIDA') return 'bg-blue-100 text-blue-700';
+    return 'bg-gray-100 text-gray-600';
+  }
+
+  estaAnulado(movimiento: MovimientoResponse): boolean {
+    return !!movimiento.anuladoEn;
+  }
+
+  private configurarTipoMovimiento(tipo: TipoMovimiento): void {
+    if (tipo === 'ENTRADA') {
+      this.movimientoForm.controls.proveedorId.enable({ emitEvent: false });
+    } else {
+      this.movimientoForm.controls.proveedorId.setValue('', { emitEvent: false });
+      this.movimientoForm.controls.proveedorId.disable({ emitEvent: false });
+    }
+
+    if (tipo === 'AJUSTE') {
+      this.movimientoForm.controls.stockDestino.enable({ emitEvent: false });
+    } else {
+      this.movimientoForm.controls.stockDestino.setValue(0, { emitEvent: false });
+      this.movimientoForm.controls.stockDestino.disable({ emitEvent: false });
     }
   }
 
-  availableStock(sku: string): number {
-    return this.stock.find((item) => item.sku === sku.trim().toUpperCase())?.stock ?? 0;
-  }
-
-  movementBadgeClass(type: MovementType): string {
-    if (type === 'ENTRADA') return 'badge text-bg-success';
-    if (type === 'SALIDA') return 'badge text-bg-primary';
-    return 'badge text-bg-secondary';
-  }
-
-  private loadData(): void {
-    const rawMovements = localStorage.getItem(MOVEMENTS_KEY);
-    const rawStock = localStorage.getItem(STOCK_KEY);
-
-    try {
-      this.movements = rawMovements ? (JSON.parse(rawMovements) as MovementItem[]) : [];
-    } catch {
-      this.movements = [];
-    }
-
-    try {
-      this.stock = rawStock
-        ? (JSON.parse(rawStock) as StockItem[])
-        : [
-            { sku: 'TITI-MOU-01', product: 'Mouse inalámbrico', stock: 22 },
-            { sku: 'TITI-HOG-15', product: 'Lámpara LED escritorio', stock: 6 },
-          ];
-      this.persistData();
-    } catch {
-      this.stock = [];
-    }
-
-    try {
-      const parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) ?? '[]') as Array<{ sku: string; name: string }>;
-      this.productsRef = parsed
-        .filter((item) => !!item?.sku && !!item?.name)
-        .map((item) => ({ sku: item.sku, name: item.name }));
-    } catch {
-      this.productsRef = [];
-    }
-
-    try {
-      const parsed = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? '[]') as Array<{ businessName: string; status?: string }>;
-      this.providersRef = parsed
-        .filter((item) => !!item?.businessName && (item.status ?? 'ACTIVO') === 'ACTIVO')
-        .map((item) => item.businessName);
-    } catch {
-      this.providersRef = [];
-    }
-  }
-
-  private persistData(): void {
-    localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(this.movements));
-    localStorage.setItem(STOCK_KEY, JSON.stringify(this.stock));
+  private usuarioSesionId(): string | null {
+    return this.auth.session()?.id ?? null;
   }
 }

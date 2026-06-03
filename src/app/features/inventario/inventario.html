@@ -1,124 +1,161 @@
-<section class="inventory-page app-page">
-  <header class="section-head">
+<header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shrink-0">
+  <div class="flex items-center gap-2 text-sm text-gray-400">
+    <i class="bi bi-house"></i>
+    <i class="bi bi-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium">Inventario</span>
+  </div>
+</header>
+
+<main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
+  <div class="flex items-center justify-between mb-5">
     <div>
-      <h1 class="page-title">Control de inventario</h1>
-      <p class="page-subtitle">Gestión de stock disponible, mínimo y ubicación de almacén.</p>
+      <h1 class="text-xl font-bold text-gray-800">Inventario</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Control de stock por ubicación</p>
     </div>
-    <div class="d-flex gap-2">
-      @if (editingId) {
-        <button type="button" class="btn btn-outline-primary btn-sm" (click)="cancelEdit()">Cancelar edición</button>
-      }
-    </div>
-  </header>
+    <button type="button" (click)="abrirModal()" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+      <i class="bi bi-plus-lg"></i>
+      <span class="hidden sm:inline">Nuevo registro</span>
+      <span class="sm:hidden">Nuevo</span>
+    </button>
+  </div>
 
-  <article class="card p-3 p-md-4">
-    <h5 class="panel-title mb-3">Datos del inventario</h5>
-    <form class="row g-3" [formGroup]="inventoryForm" (ngSubmit)="saveItem()">
-      <div class="col-12 col-md-2">
-        <label class="form-label">Producto</label>
-        <div class="position-relative">
-          <input
-            type="text"
-            class="form-control"
-            formControlName="product"
-            placeholder="Buscar producto"
-            (input)="onProductInput()"
-          />
-          @if (showProductSuggestions) {
-            <div class="product-suggestions shadow-sm">
-              @for (product of filteredProducts; track product.sku) {
-                <button type="button" class="suggestion-item" (click)="selectProduct(product)">
-                  <span class="suggestion-name">{{ product.name }}</span>
-                  <small class="suggestion-sku">{{ product.sku }}</small>
-                </button>
-              }
-            </div>
-          }
-        </div>
-      </div>
-      <div class="col-12 col-md-2">
-        <label class="form-label">SKU</label>
-        <input type="text" class="form-control text-uppercase" formControlName="sku" readonly />
-      </div>
-      <div class="col-12 col-md-2">
-        <label class="form-label">Categoría</label>
-        <input type="text" class="form-control" formControlName="category" readonly />
-      </div>
-      <div class="col-12 col-md-2">
-        <label class="form-label">Stock mínimo</label>
-        <input
-          type="number"
-          min="0"
-          class="form-control no-spinner"
-          formControlName="minStock"
-          placeholder=""
-          (keydown)="blockInvalidNumberKeys($event)"
-        />
-      </div>
-      <div class="col-12 col-md-2">
-        <label class="form-label">Ubicación</label>
-        <input type="text" class="form-control" formControlName="location" placeholder="Ej. A-01" />
-      </div>
-      <div class="col-12 col-md-2 d-flex align-items-end">
-        <button type="button" class="btn btn-primary w-100" (click)="saveItem()">
-          {{ editingId ? 'Guardar cambios' : 'Registrar inventario' }}
-        </button>
-      </div>
-    </form>
-    <p class="small text-secondary mb-0 mt-3">El stock actual se actualiza automáticamente desde Movimientos.</p>
-  </article>
+  @if (mensaje) {
+    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{{ mensaje }}</div>
+  }
 
-  <article class="card p-3 p-md-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="panel-title mb-0">Listado de inventario</h5>
-      <span class="badge text-bg-primary">{{ inventory.length }} registros</span>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>SKU</th>
-            <th>Categoría</th>
-            <th>Stock</th>
-            <th>Mínimo</th>
-            <th>Estado stock</th>
-            <th>Estado registro</th>
-            <th>Ubicación</th>
-            <th>Actualización</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of inventory; track item.id) {
-            <tr>
-              <td>{{ item.product }}</td>
-              <td>{{ item.sku }}</td>
-              <td>{{ item.category }}</td>
-              <td>{{ item.stock }}</td>
-              <td>{{ item.minStock }}</td>
-              <td><span [class]="stockBadgeClass(item)">{{ stockStatus(item) }}</span></td>
-              <td><span [class]="recordStatusBadgeClass(item.recordStatus)">{{ item.recordStatus }}</span></td>
-              <td>{{ item.location }}</td>
-              <td>{{ item.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-              <td class="text-end">
-                <div class="d-inline-flex gap-2">
-                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="editItem(item)">Editar</button>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleRecordStatus(item.id)">
-                    {{ item.recordStatus === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+  @if (estadoListado === 'cargando') {
+    <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando inventario...</div>
+  } @else if (estadoListado === 'error') {
+    <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ errorListado }}</div>
+  } @else {
+    <div class="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div class="h-full overflow-auto p-3 xl:p-0">
+        <div class="space-y-3 xl:hidden">
+          @for (item of inventarios; track item.id) {
+            <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div class="mb-3 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold text-gray-800">{{ item.productoNombre }}</h2>
+                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ item.productoSku }}</p>
+                </div>
+                <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ stockClase(item) }}">{{ estadoStock(item) }}</span>
+              </div>
+              <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Stock actual</dt>
+                  <dd class="text-lg font-bold text-gray-800">{{ item.stockActual }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Stock mínimo</dt>
+                  <dd class="font-semibold text-gray-700">{{ item.stockMinimo }}</dd>
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <dt class="text-xs font-medium text-gray-400">Ubicación</dt>
+                  <dd class="truncate text-gray-700">{{ item.ubicacion }}</dd>
+                </div>
+              </dl>
+              <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoClase(item.estado) }}">{{ item.estado }}</span>
+                <div class="flex gap-2">
+                  <button type="button" (click)="editarInventario(item)" aria-label="Editar inventario" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-pencil text-sm text-gray-500"></i>
+                  </button>
+                  <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar inventario' : 'Activar inventario'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="item.estado === 'ACTIVO'" [class.bi-toggle-off]="item.estado === 'INACTIVO'"></i>
                   </button>
                 </div>
-              </td>
-            </tr>
+              </div>
+            </article>
+          } @empty {
+            <div class="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">No hay registros de inventario.</div>
           }
-        </tbody>
-      </table>
-    </div>
-  </article>
+        </div>
 
-  @if (feedback) {
-    <div class="card p-3 inventory-feedback">
-      {{ feedback }}
+        <table class="hidden w-full min-w-[720px] text-sm xl:table">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-100 text-gray-400">
+              <th class="px-4 py-3 text-left font-medium">Producto</th>
+              <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">SKU</th>
+              <th class="px-4 py-3 text-left font-medium">Stock</th>
+              <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">Mín.</th>
+              <th class="px-4 py-3 text-left font-medium">Stock</th>
+              <th class="px-4 py-3 text-left font-medium">Registro</th>
+              <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Ubicación</th>
+              <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Actualizado</th>
+              <th class="px-4 py-3 text-left font-medium">Acc.</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of inventarios; track item.id) {
+              <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ item.productoNombre }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{{ item.productoSku }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-800">{{ item.stockActual }}</td>
+                <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ item.stockMinimo }}</td>
+                <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ stockClase(item) }}">{{ estadoStock(item) }}</span></td>
+                <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoClase(item.estado) }}">{{ item.estado }}</span></td>
+                <td class="px-4 py-3 text-gray-600 hidden lg:table-cell">{{ item.ubicacion }}</td>
+                <td class="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{{ (item.actualizadoEn || item.creadoEn) | date:'dd/MM/yy HH:mm' }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex gap-1.5">
+                    <button type="button" (click)="editarInventario(item)" aria-label="Editar inventario" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                      <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
+                    </button>
+                    <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar inventario' : 'Activar inventario'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                      <i class="bi text-sm text-gray-500 hover:text-red-500" [class.bi-toggle-on]="item.estado === 'ACTIVO'" [class.bi-toggle-off]="item.estado === 'INACTIVO'"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-400">No hay registros de inventario.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   }
-</section>
+</main>
+
+@if (mostrarModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cancelarEdicion()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-800">{{ editandoId ? 'Editar registro' : 'Nuevo registro de inventario' }}</h2>
+        <button type="button" (click)="cancelarEdicion()" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+      <form [formGroup]="inventarioForm" (ngSubmit)="guardarInventario()" class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
+          <select formControlName="productoId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+            <option value="">Seleccione producto</option>
+            @for (producto of productosActivosSinInventario; track producto.id) {
+              <option [value]="producto.id">{{ producto.nombre }} - {{ producto.sku }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Stock actual *</label>
+          <input type="number" formControlName="stockActual" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Stock mínimo *</label>
+          <input type="number" formControlName="stockMinimo" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ubicación *</label>
+          <input type="text" formControlName="ubicacion" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="A1-RACK-03">
+        </div>
+        <div class="sm:col-span-2 flex gap-3 pt-2 border-t border-gray-100">
+          <button type="submit" [disabled]="enviando || inventarioForm.invalid" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">Guardar</button>
+          <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

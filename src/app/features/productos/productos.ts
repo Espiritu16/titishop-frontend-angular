@@ -1,268 +1,486 @@
-import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { Component } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-
-type ProductStatus = 'ACTIVO' | 'INACTIVO';
-
-interface ProductItem {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  brand: string;
-  purchasePrice: number;
-  salePrice: number;
-  status: ProductStatus;
-  createdAt: string;
-}
-
-const PRODUCTS_KEY = 'titishop_productos';
+import { forkJoin, Observable } from 'rxjs';
+import { getApiErrorMessage } from '../../core/api-error';
+import { EstadoCarga } from '../../core/estado-carga';
+import {
+  CategoriaResponse,
+  EstadoCatalogo,
+  EstadoProducto,
+  MarcaResponse,
+  ProductoResponse,
+} from '../../core/models';
+import { CategoriasService } from './categorias.service';
+import { MarcasService } from './marcas.service';
+import { ProductosService } from './productos.service';
 
 @Component({
-  selector: 'app-products',
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-productos',
   imports: [ReactiveFormsModule, FormsModule, DatePipe],
-  templateUrl: './products.html',
-  styleUrl: './products.scss',
+  templateUrl: './productos.html',
+  styleUrl: './productos.scss',
 })
-export class Products {
-  feedback = '';
-  editingId: string | null = null;
-  products: ProductItem[] = [];
+export class Productos {
+  mensaje = '';
+  errorListado = '';
+  estadoListado: EstadoCarga = 'inicial';
+  editandoId: string | null = null;
+  mostrarModal = false;
+  mostrarModalCategorias = false;
+  mostrarModalMarcas = false;
+  productos: ProductoResponse[] = [];
+  categorias: CategoriaResponse[] = [];
+  marcas: MarcaResponse[] = [];
+  categoriaError = '';
+  categoriaMensaje = '';
+  categoriaTexto = '';
+  categoriaEditandoId: string | null = null;
+  marcaError = '';
+  marcaMensaje = '';
+  marcaTexto = '';
+  marcaEditandoId: string | null = null;
+  enviando = false;
 
-  categories = ['Accesorios', 'Tecnología', 'Hogar', 'Oficina'];
-  brands = ['TitiHome', 'NovaTech', 'Andes', 'Genérico'];
-  newCategory = '';
-  newBrand = '';
-  categoryError = '';
-  brandError = '';
+  readonly productoForm;
 
-  readonly productForm;
-
-  constructor(private fb: FormBuilder) {
-    this.productForm = this.fb.nonNullable.group({
-      name: ['', [Validators.required, Validators.minLength(3)]],
-      sku: ['', [Validators.required, Validators.minLength(3)]],
-      category: [this.categories[0], [Validators.required]],
-      brand: [this.brands[0], [Validators.required]],
-      purchasePrice: [null as number | null, [Validators.min(0)]],
-      salePrice: [null as number | null, [Validators.min(0)]],
+  constructor(
+    private fb: FormBuilder,
+    private productosService: ProductosService,
+    private categoriasService: CategoriasService,
+    private marcasService: MarcasService
+  ) {
+    this.productoForm = this.fb.nonNullable.group({
+      nombre: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
+      sku: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(40)]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(2000)]],
+      imagenUrl: ['', [Validators.maxLength(500)]],
+      categoriaId: ['', [Validators.required]],
+      marcaId: ['', [Validators.required]],
+      precioCompra: [0, [Validators.required, Validators.min(0)]],
+      precioVenta: [0, [Validators.required, Validators.min(0)]],
     });
-    this.loadProducts();
+    this.cargarDatos();
   }
 
-  get canSubmit(): boolean {
-    const { name, sku } = this.productForm.getRawValue();
-    return this.productForm.valid && !!name.trim() && !!sku.trim();
+  get categoriasActivas(): CategoriaResponse[] {
+    return this.categorias.filter((categoria) => categoria.estado === 'ACTIVO');
   }
 
-  blockInvalidNumberKeys(event: KeyboardEvent): void {
+  get marcasActivas(): MarcaResponse[] {
+    return this.marcas.filter((marca) => marca.estado === 'ACTIVO');
+  }
+
+  get opcionesCategoriaProducto(): CategoriaResponse[] {
+    const seleccionada = this.productoForm.controls.categoriaId.value;
+    const categoria = this.categorias.find((item) => item.id === seleccionada);
+    if (!categoria || categoria.estado === 'ACTIVO') return this.categoriasActivas;
+    return [categoria, ...this.categoriasActivas];
+  }
+
+  get opcionesMarcaProducto(): MarcaResponse[] {
+    const seleccionada = this.productoForm.controls.marcaId.value;
+    const marca = this.marcas.find((item) => item.id === seleccionada);
+    if (!marca || marca.estado === 'ACTIVO') return this.marcasActivas;
+    return [marca, ...this.marcasActivas];
+  }
+
+  get categoriaEditando(): CategoriaResponse | null {
+    if (!this.categoriaEditandoId) return null;
+    return this.categorias.find((categoria) => categoria.id === this.categoriaEditandoId) ?? null;
+  }
+
+  get marcaEditando(): MarcaResponse | null {
+    if (!this.marcaEditandoId) return null;
+    return this.marcas.find((marca) => marca.id === this.marcaEditandoId) ?? null;
+  }
+
+  bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
     if (['e', 'E', '+', '-'].includes(event.key)) {
       event.preventDefault();
     }
   }
 
-  addCategory(): void {
-    this.categoryError = '';
-    const normalized = this.normalizeCatalogName(this.newCategory);
-    if (!normalized) {
-      this.categoryError = 'Solo letras y espacios.';
-      return;
-    }
-    if (this.categories.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
-      this.categoryError = 'La categoría ya existe.';
-      return;
-    }
-    this.categories = [...this.categories, normalized];
-    this.productForm.patchValue({ category: normalized });
-    this.newCategory = '';
-    this.feedback = 'Categoría agregada.';
+  abrirModalProducto(): void {
+    this.cancelarEdicion();
+    this.mostrarModal = true;
   }
 
-  addBrand(): void {
-    this.brandError = '';
-    const normalized = this.normalizeCatalogName(this.newBrand);
-    if (!normalized) {
-      this.brandError = 'Solo letras y espacios.';
-      return;
-    }
-    if (this.brands.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
-      this.brandError = 'La marca ya existe.';
-      return;
-    }
-    this.brands = [...this.brands, normalized];
-    this.productForm.patchValue({ brand: normalized });
-    this.newBrand = '';
-    this.feedback = 'Marca agregada.';
+  abrirModalCategorias(): void {
+    this.mostrarModalCategorias = true;
+    this.categoriaMensaje = '';
+    this.reiniciarEditorCategoria();
   }
 
-  onCategoryInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
-    if (sanitized !== input.value) input.value = sanitized;
-    this.newCategory = sanitized;
-    this.categoryError = '';
+  abrirModalMarcas(): void {
+    this.mostrarModalMarcas = true;
+    this.marcaMensaje = '';
+    this.reiniciarEditorMarca();
   }
 
-  onBrandInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
-    if (sanitized !== input.value) input.value = sanitized;
-    this.newBrand = sanitized;
-    this.brandError = '';
+  cerrarModalCategorias(): void {
+    this.mostrarModalCategorias = false;
+    this.categoriaMensaje = '';
+    this.reiniciarEditorCategoria();
   }
 
-  saveProduct(): void {
-    if (this.productForm.invalid) {
-      this.productForm.markAllAsTouched();
-      this.feedback = 'Completa correctamente los campos obligatorios.';
-      return;
-    }
-
-    const value = this.productForm.getRawValue();
-    const normalizedName = value.name.trim().replace(/\s+/g, ' ');
-    const normalizedSku = value.sku.trim().toUpperCase();
-
-    if (!normalizedName) {
-      this.feedback = 'Ingrese el nombre del producto.';
-      return;
-    }
-
-    if (!normalizedSku) {
-      this.feedback = 'Ingrese el SKU del producto.';
-      return;
-    }
-
-    const purchasePrice = value.purchasePrice ?? 0;
-    const salePrice = value.salePrice ?? 0;
-
-    const skuExists = this.products.some((p) => p.sku === normalizedSku && p.id !== this.editingId);
-    if (skuExists) {
-      this.feedback = 'El SKU ya existe.';
-      return;
-    }
-
-    if (this.editingId) {
-      this.products = this.products.map((p) =>
-        p.id === this.editingId
-          ? {
-              ...p,
-              name: normalizedName,
-              sku: normalizedSku,
-              category: value.category,
-              brand: value.brand,
-              purchasePrice,
-              salePrice,
-            }
-          : p
-      );
-      this.feedback = 'Producto actualizado correctamente.';
-    } else {
-      const item: ProductItem = {
-        id: crypto.randomUUID(),
-        name: normalizedName,
-        sku: normalizedSku,
-        category: value.category,
-        brand: value.brand,
-        purchasePrice,
-        salePrice,
-        status: 'ACTIVO',
-        createdAt: new Date().toISOString(),
-      };
-      this.products = [item, ...this.products];
-      this.feedback = 'Producto registrado correctamente.';
-    }
-
-    this.persist();
-    this.cancelEdit();
+  cerrarModalMarcas(): void {
+    this.mostrarModalMarcas = false;
+    this.marcaMensaje = '';
+    this.reiniciarEditorMarca();
   }
 
-  editProduct(item: ProductItem): void {
-    this.editingId = item.id;
-    this.productForm.setValue({
-      name: item.name,
-      sku: item.sku,
-      category: item.category,
-      brand: item.brand,
-      purchasePrice: item.purchasePrice,
-      salePrice: item.salePrice,
+  cargarDatos(): void {
+    this.estadoListado = 'cargando';
+    this.errorListado = '';
+    forkJoin({
+      productos: this.productosService.listar(),
+      categorias: this.categoriasService.listar(),
+      marcas: this.marcasService.listar(),
+    }).subscribe({
+      next: ({ productos, categorias, marcas }) => {
+        this.productos = productos;
+        this.categorias = categorias;
+        this.marcas = marcas;
+        this.estadoListado = 'exito';
+        this.asegurarCatalogosSeleccionados();
+      },
+      error: (error: unknown) => {
+        this.estadoListado = 'error';
+        this.errorListado = getApiErrorMessage(error);
+      },
     });
-    this.feedback = `Editando producto ${item.name}.`;
   }
 
-  cancelEdit(): void {
-    this.editingId = null;
-    this.productForm.reset({
-      name: '',
+  guardarProducto(): void {
+    if (this.productoForm.invalid) {
+      this.productoForm.markAllAsTouched();
+      this.mensaje = 'Completa correctamente los campos obligatorios.';
+      return;
+    }
+
+    const value = this.productoForm.getRawValue();
+    const request = {
+      nombre: this.normalizarTexto(value.nombre),
+      sku: this.normalizarSku(value.sku),
+      descripcion: this.normalizarTexto(value.descripcion),
+      imagenUrl: this.normalizarOpcional(value.imagenUrl),
+      categoriaId: value.categoriaId,
+      marcaId: value.marcaId,
+      precioCompra: value.precioCompra,
+      precioVenta: value.precioVenta,
+    };
+
+    this.enviando = true;
+    const request$ = this.editandoId
+      ? this.productosService.actualizar(this.editandoId, {
+          ...request,
+          estado: this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO',
+        })
+      : this.productosService.crear(request);
+
+    request$.subscribe({
+      next: () => {
+        this.mensaje = this.editandoId
+          ? 'Producto actualizado correctamente.'
+          : 'Producto registrado correctamente.';
+        this.enviando = false;
+        this.cancelarEdicion();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.enviando = false;
+        this.mensaje = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  editarProducto(producto: ProductoResponse): void {
+    this.editandoId = producto.id;
+    this.mostrarModal = true;
+    this.productoForm.setValue({
+      nombre: producto.nombre,
+      sku: producto.sku,
+      descripcion: producto.descripcion,
+      imagenUrl: producto.imagenUrl ?? '',
+      categoriaId: producto.categoriaId,
+      marcaId: producto.marcaId,
+      precioCompra: producto.precioCompra,
+      precioVenta: producto.precioVenta,
+    });
+    this.mensaje = `Editando producto ${producto.nombre}.`;
+  }
+
+  cancelarEdicion(): void {
+    this.mostrarModal = false;
+    this.editandoId = null;
+    this.productoForm.reset({
+      nombre: '',
       sku: '',
-      category: this.categories[0],
-      brand: this.brands[0],
-      purchasePrice: null,
-      salePrice: null,
+      descripcion: '',
+      imagenUrl: '',
+      categoriaId: this.categoriasActivas[0]?.id ?? '',
+      marcaId: this.marcasActivas[0]?.id ?? '',
+      precioCompra: 0,
+      precioVenta: 0,
     });
   }
 
-  toggleStatus(id: string): void {
-    this.products = this.products.map((p) =>
-      p.id === id ? { ...p, status: p.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO' } : p
-    );
-    this.persist();
-  }
-
-  statusBadgeClass(status: ProductStatus): string {
-    return status === 'ACTIVO' ? 'badge text-bg-success' : 'badge text-bg-secondary';
-  }
-
-  private loadProducts(): void {
-    const raw = localStorage.getItem(PRODUCTS_KEY);
-    if (!raw) {
-      this.products = this.seedProducts();
-      this.persist();
+  cambiarEstadoProducto(producto: ProductoResponse): void {
+    if (producto.estado === 'ACTIVO') {
+      this.productosService.inactivar(producto.id).subscribe({
+        next: () => {
+          this.mensaje = 'Producto desactivado correctamente.';
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
       return;
     }
 
-    try {
-      const parsed = JSON.parse(raw) as ProductItem[];
-      this.products = Array.isArray(parsed) ? parsed : this.seedProducts();
-    } catch {
-      this.products = this.seedProducts();
+    this.productosService
+      .actualizar(producto.id, {
+        nombre: producto.nombre,
+        sku: producto.sku,
+        descripcion: producto.descripcion,
+        imagenUrl: producto.imagenUrl,
+        categoriaId: producto.categoriaId,
+        marcaId: producto.marcaId,
+        precioCompra: producto.precioCompra,
+        precioVenta: producto.precioVenta,
+        estado: 'ACTIVO',
+      })
+      .subscribe({
+        next: () => {
+          this.mensaje = 'Producto activado correctamente.';
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
+  }
+
+  iniciarEdicionCategoria(categoria: CategoriaResponse): void {
+    this.categoriaEditandoId = categoria.id;
+    this.categoriaTexto = categoria.nombre;
+    this.categoriaError = '';
+    this.categoriaMensaje = '';
+  }
+
+  guardarCategoria(): void {
+    this.categoriaError = '';
+    const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
+
+    if (!nombre) {
+      this.categoriaError = 'Ingrese una categoría válida.';
+      return;
+    }
+
+    const duplicada = this.categorias.some(
+      (categoria) =>
+        categoria.nombre.toLowerCase() === nombre.toLowerCase() &&
+        categoria.id !== this.categoriaEditandoId
+    );
+    if (duplicada) {
+      this.categoriaError = 'La categoría ya existe.';
+      return;
+    }
+
+    const categoria = this.categoriaEditando;
+    const request$ = categoria
+      ? this.categoriasService.actualizar(categoria.id, { nombre, estado: categoria.estado })
+      : this.categoriasService.crear({ nombre });
+
+    request$.subscribe({
+      next: () => {
+        this.categoriaMensaje = categoria
+          ? 'Categoría actualizada correctamente.'
+          : 'Categoría creada correctamente.';
+        this.reiniciarEditorCategoria();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.categoriaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  cambiarEstadoCategoria(categoria: CategoriaResponse): void {
+    if (categoria.estado === 'ACTIVO' && this.categoriasActivas.length === 1) {
+      this.categoriaError = 'Debe existir al menos una categoría activa.';
+      return;
+    }
+
+    const request$: Observable<unknown> =
+      categoria.estado === 'ACTIVO'
+        ? this.categoriasService.inactivar(categoria.id)
+        : this.categoriasService.actualizar(categoria.id, {
+            nombre: categoria.nombre,
+            estado: 'ACTIVO',
+          });
+
+    request$.subscribe({
+      next: () => {
+        this.categoriaMensaje =
+          categoria.estado === 'ACTIVO'
+            ? 'Categoría desactivada correctamente.'
+            : 'Categoría activada correctamente.';
+        this.reiniciarEditorCategoria();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.categoriaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  categoriaEnUso(categoria: CategoriaResponse): boolean {
+    return this.productos.some((producto) => producto.categoriaId === categoria.id);
+  }
+
+  actualizarTextoCategoria(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.categoriaTexto = sanitized;
+    this.categoriaError = '';
+    this.categoriaMensaje = '';
+  }
+
+  reiniciarEditorCategoria(): void {
+    this.categoriaTexto = '';
+    this.categoriaEditandoId = null;
+    this.categoriaError = '';
+  }
+
+  iniciarEdicionMarca(marca: MarcaResponse): void {
+    this.marcaEditandoId = marca.id;
+    this.marcaTexto = marca.nombre;
+    this.marcaError = '';
+    this.marcaMensaje = '';
+  }
+
+  guardarMarca(): void {
+    this.marcaError = '';
+    const nombre = this.normalizarNombreCatalogo(this.marcaTexto);
+
+    if (!nombre) {
+      this.marcaError = 'Ingrese una marca válida.';
+      return;
+    }
+
+    const duplicada = this.marcas.some(
+      (marca) =>
+        marca.nombre.toLowerCase() === nombre.toLowerCase() &&
+        marca.id !== this.marcaEditandoId
+    );
+    if (duplicada) {
+      this.marcaError = 'La marca ya existe.';
+      return;
+    }
+
+    const marca = this.marcaEditando;
+    const request$ = marca
+      ? this.marcasService.actualizar(marca.id, { nombre, estado: marca.estado })
+      : this.marcasService.crear({ nombre });
+
+    request$.subscribe({
+      next: () => {
+        this.marcaMensaje = marca
+          ? 'Marca actualizada correctamente.'
+          : 'Marca creada correctamente.';
+        this.reiniciarEditorMarca();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.marcaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  cambiarEstadoMarca(marca: MarcaResponse): void {
+    if (marca.estado === 'ACTIVO' && this.marcasActivas.length === 1) {
+      this.marcaError = 'Debe existir al menos una marca activa.';
+      return;
+    }
+
+    const request$: Observable<unknown> =
+      marca.estado === 'ACTIVO'
+        ? this.marcasService.inactivar(marca.id)
+        : this.marcasService.actualizar(marca.id, {
+            nombre: marca.nombre,
+            estado: 'ACTIVO',
+          });
+
+    request$.subscribe({
+      next: () => {
+        this.marcaMensaje =
+          marca.estado === 'ACTIVO'
+            ? 'Marca desactivada correctamente.'
+            : 'Marca activada correctamente.';
+        this.reiniciarEditorMarca();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.marcaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  marcaEnUso(marca: MarcaResponse): boolean {
+    return this.productos.some((producto) => producto.marcaId === marca.id);
+  }
+
+  actualizarTextoMarca(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.marcaTexto = sanitized;
+    this.marcaError = '';
+    this.marcaMensaje = '';
+  }
+
+  reiniciarEditorMarca(): void {
+    this.marcaTexto = '';
+    this.marcaEditandoId = null;
+    this.marcaError = '';
+  }
+
+  estadoClase(estado: EstadoCatalogo | EstadoProducto): string {
+    return estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
+  }
+
+  private asegurarCatalogosSeleccionados(): void {
+    if (!this.productoForm.controls.categoriaId.value && this.categoriasActivas[0]) {
+      this.productoForm.patchValue({ categoriaId: this.categoriasActivas[0].id });
+    }
+    if (!this.productoForm.controls.marcaId.value && this.marcasActivas[0]) {
+      this.productoForm.patchValue({ marcaId: this.marcasActivas[0].id });
     }
   }
 
-  private persist(): void {
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(this.products));
+  private normalizarTexto(value: string): string {
+    return value.trim().replace(/\s+/g, ' ');
   }
 
-  private seedProducts(): ProductItem[] {
-    return [
-      {
-        id: crypto.randomUUID(),
-        name: 'Mouse inalámbrico',
-        sku: 'TITI-MOU-01',
-        category: 'Tecnología',
-        brand: 'NovaTech',
-        purchasePrice: 35,
-        salePrice: 55,
-        status: 'ACTIVO',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: crypto.randomUUID(),
-        name: 'Lámpara LED escritorio',
-        sku: 'TITI-HOG-15',
-        category: 'Hogar',
-        brand: 'TitiHome',
-        purchasePrice: 42,
-        salePrice: 68,
-        status: 'ACTIVO',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+  private normalizarSku(value: string): string {
+    return value.trim().replace(/\s+/g, '-').toUpperCase();
   }
 
-  private normalizeCatalogName(value: string): string {
+  private normalizarOpcional(value: string): string | null {
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private normalizarNombreCatalogo(value: string): string {
     const normalized = value.trim().replace(/\s+/g, ' ');
     if (!normalized) return '';
-    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(normalized)) return '';
+    if (normalized.length < 2 || normalized.length > 80) return '';
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]+$/.test(normalized)) return '';
     return normalized;
   }
 }

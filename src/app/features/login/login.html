@@ -1,32 +1,36 @@
-<div class="login-page d-flex align-items-center justify-content-center">
-  <div class="card login-card p-0 overflow-hidden">
-    <div class="row g-0">
-      <div class="col-md-5 login-aside p-4">
-        <div class="brand-mark mb-3"><i class="bi bi-bag-heart-fill"></i></div>
-        <h3 class="mb-2">TITI SHOP PERU</h3>
-        <p class="mb-0">Gestión moderna de inventario para operaciones internas.</p>
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-5xl overflow-hidden rounded-2xl border border-white/70 bg-white/85 shadow-[0_10px_28px_rgba(28,50,89,0.11)] backdrop-blur">
+    <div class="grid grid-cols-1 md:grid-cols-[5fr_7fr]">
+      <div class="bg-gradient-to-br from-emerald-100/90 to-sky-100/90 p-6 text-slate-700">
+        <div class="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-white/65 text-xl text-slate-700">
+          <i class="bi bi-bag-heart-fill"></i>
+        </div>
+        <h3 class="m-0 mb-2 text-xl font-extrabold tracking-wide text-slate-700">TITI SHOP PERU</h3>
+        <p class="m-0 text-sm leading-relaxed text-slate-600">Gestión moderna de inventario para operaciones internas.</p>
       </div>
-      <div class="col-md-7 p-4 p-md-5">
-        <h5 class="mb-1">Bienvenido</h5>
-        <p class="text-secondary mb-4">Ingresa tus credenciales para continuar</p>
-        <form (ngSubmit)="submit()">
-          <div class="mb-3">
-            <label class="form-label">Correo</label>
-            <input [(ngModel)]="email" name="email" class="form-control" type="email" required />
+      <div class="p-6 md:p-10">
+        <h5 class="mb-1 text-lg font-bold text-slate-800">Bienvenido</h5>
+        <p class="mb-6 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
+        <form (ngSubmit)="submit()" class="space-y-4">
+          <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-600">Correo</label>
+            <input [(ngModel)]="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="email" required />
           </div>
-          <div class="mb-3">
-            <label class="form-label">Contraseña</label>
-            <input [(ngModel)]="password" name="password" class="form-control" type="password" required />
+          <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-600">Contraseña</label>
+            <input [(ngModel)]="password" name="password" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="password" required />
           </div>
           @if (error) {
-            <div class="alert alert-danger py-2">{{ error }}</div>
+            <div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</div>
           }
           @if (message) {
-            <div class="alert alert-success py-2">{{ message }}</div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</div>
           }
-          <button class="btn btn-primary w-100" type="submit" [disabled]="!canSubmit">Ingresar al sistema</button>
+          <button class="w-full rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 px-4 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(79,131,212,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60" type="submit" [disabled]="!canSubmit">
+            {{ loading ? 'Ingresando...' : 'Ingresar al sistema' }}
+          </button>
         </form>
-        <small class="d-block mt-3 text-secondary">Usuario demo: kevin@titishop.com / 123456</small>
+        <small class="mt-4 block text-xs text-slate-500">Usuario backend: kevin@gmail.com / kevin123</small>
       </div>
     </div>
   </div>
