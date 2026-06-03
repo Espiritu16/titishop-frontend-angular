@@ -1,0 +1,349 @@
+<header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shrink-0">
+  <div class="flex items-center gap-2 text-sm text-gray-400">
+    <i class="bi bi-house"></i>
+    <i class="bi bi-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium">Productos</span>
+  </div>
+</header>
+
+<main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-gray-800">Productos</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Gestión del catálogo de productos</p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <button type="button" (click)="abrirModalCategorias()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-tags"></i>
+        <span>Administrar categorías</span>
+      </button>
+      <button type="button" (click)="abrirModalMarcas()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-award"></i>
+        <span>Administrar marcas</span>
+      </button>
+      <button type="button" (click)="abrirModalProducto()" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-plus-lg"></i>
+        <span class="hidden sm:inline">Nuevo producto</span>
+        <span class="sm:hidden">Nuevo</span>
+      </button>
+    </div>
+  </div>
+
+  @if (mensaje) {
+    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{{ mensaje }}</div>
+  }
+
+  @if (estadoListado === 'cargando') {
+    <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando productos...</div>
+  } @else if (estadoListado === 'error') {
+    <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ errorListado }}</div>
+  } @else {
+    <div class="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div class="h-full overflow-auto p-3 xl:p-0">
+        <div class="space-y-3 xl:hidden">
+          @for (producto of productos; track producto.id) {
+            <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div class="mb-3 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="truncate text-base font-semibold text-gray-800">{{ producto.nombre }}</h2>
+                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ producto.sku }}</p>
+                </div>
+                <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoClase(producto.estado) }}">{{ producto.estado }}</span>
+              </div>
+              <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div class="min-w-0">
+                  <dt class="text-xs font-medium text-gray-400">Categoría</dt>
+                  <dd class="truncate text-gray-700">{{ producto.categoriaNombre }}</dd>
+                </div>
+                <div class="min-w-0">
+                  <dt class="text-xs font-medium text-gray-400">Marca</dt>
+                  <dd class="truncate text-gray-700">{{ producto.marcaNombre }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Compra</dt>
+                  <dd class="font-semibold text-gray-700">S/ {{ producto.precioCompra }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Venta</dt>
+                  <dd class="font-semibold text-gray-800">S/ {{ producto.precioVenta }}</dd>
+                </div>
+              </dl>
+              <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                <span class="text-xs text-gray-400">{{ producto.creadoEn | date:'dd/MM/yy' }}</span>
+                <div class="flex gap-2">
+                  <button type="button" (click)="editarProducto(producto)" aria-label="Editar producto" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-pencil text-sm text-gray-500"></i>
+                  </button>
+                  <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto' : 'Activar producto'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="producto.estado === 'ACTIVO'" [class.bi-toggle-off]="producto.estado === 'INACTIVO'"></i>
+                  </button>
+                </div>
+              </div>
+            </article>
+          } @empty {
+            <div class="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">No hay productos registrados.</div>
+          }
+        </div>
+
+        <table class="hidden w-full min-w-[760px] text-sm xl:table">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-100 text-gray-400">
+              <th class="px-4 py-3 text-left font-medium">Nombre</th>
+              <th class="px-4 py-3 text-left font-medium">SKU</th>
+              <th class="px-4 py-3 text-left font-medium hidden md:table-cell">Categoría</th>
+              <th class="px-4 py-3 text-left font-medium hidden md:table-cell">Marca</th>
+              <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">P. Compra</th>
+              <th class="px-4 py-3 text-left font-medium">P. Venta</th>
+              <th class="px-4 py-3 text-left font-medium">Estado</th>
+              <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">Fecha</th>
+              <th class="px-4 py-3 text-left font-medium">Acc.</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (producto of productos; track producto.id) {
+              <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ producto.nombre }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ producto.sku }}</td>
+                <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ producto.categoriaNombre }}</td>
+                <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ producto.marcaNombre }}</td>
+                <td class="px-4 py-3 text-gray-600 hidden lg:table-cell">S/ {{ producto.precioCompra }}</td>
+                <td class="px-4 py-3 text-gray-600">S/ {{ producto.precioVenta }}</td>
+                <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoClase(producto.estado) }}">{{ producto.estado }}</span></td>
+                <td class="px-4 py-3 text-gray-400 hidden sm:table-cell">{{ producto.creadoEn | date:'dd/MM/yy' }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex gap-1.5">
+                    <button type="button" (click)="editarProducto(producto)" aria-label="Editar producto" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                      <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
+                    </button>
+                    <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto' : 'Activar producto'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                      <i class="bi text-sm text-gray-500 hover:text-red-500" [class.bi-toggle-on]="producto.estado === 'ACTIVO'" [class.bi-toggle-off]="producto.estado === 'INACTIVO'"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-400">No hay productos registrados.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</main>
+
+@if (mostrarModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cancelarEdicion()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-800">{{ editandoId ? 'Editar producto' : 'Nuevo producto' }}</h2>
+        <button type="button" (click)="cancelarEdicion()" aria-label="Cerrar modal de producto" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+      <form [formGroup]="productoForm" (ngSubmit)="guardarProducto()" class="px-6 py-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Nombre *</label>
+            <input type="text" formControlName="nombre" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre del producto">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">SKU *</label>
+            <input type="text" formControlName="sku" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:border-indigo-400" placeholder="TITI-XXX-00">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Imagen URL</label>
+            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
+            <select formControlName="categoriaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              @for (categoria of opcionesCategoriaProducto; track categoria.id) {
+                <option [value]="categoria.id">{{ categoria.nombre }}{{ categoria.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Marca *</label>
+            <select formControlName="marcaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              @for (marca of opcionesMarcaProducto; track marca.id) {
+                <option [value]="marca.id">{{ marca.nombre }}{{ marca.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Precio compra *</label>
+            <input type="number" formControlName="precioCompra" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Precio venta *</label>
+            <input type="number" formControlName="precioVenta" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Descripción *</label>
+            <textarea formControlName="descripcion" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Descripción comercial del producto"></textarea>
+          </div>
+          @if (mensaje) {
+            <p class="sm:col-span-2 text-xs text-red-500">{{ mensaje }}</p>
+          }
+        </div>
+        <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
+          <button type="submit" [disabled]="enviando || productoForm.invalid" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>
+          <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (mostrarModalMarcas) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cerrarModalMarcas()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div>
+          <h2 class="text-base font-semibold text-gray-800">Administrar marcas</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Crea, edita o cambia el estado de las marcas.</p>
+        </div>
+        <button type="button" (click)="cerrarModalMarcas()" aria-label="Cerrar modal de marcas" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+
+      <div class="flex min-h-0 flex-1 flex-col space-y-5 px-6 py-5">
+        <form (ngSubmit)="guardarMarca()" class="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <div class="flex-1">
+            <label for="brandName" class="block text-sm font-medium text-gray-600 mb-1">
+              {{ marcaEditando ? 'Editar marca' : 'Nueva marca' }}
+            </label>
+            <input id="brandName" type="text" [ngModel]="marcaTexto" name="marcaTexto" (input)="actualizarTextoMarca($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre de marca">
+            @if (marcaError) {
+              <p class="text-xs text-red-500 mt-1">{{ marcaError }}</p>
+            }
+            @if (marcaMensaje) {
+              <p class="text-xs text-green-600 mt-1">{{ marcaMensaje }}</p>
+            }
+          </div>
+          <div class="flex gap-2 sm:items-end">
+            <button type="submit" class="flex-1 sm:flex-none bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+              {{ marcaEditando ? 'Actualizar' : 'Agregar' }}
+            </button>
+            @if (marcaEditando) {
+              <button type="button" (click)="reiniciarEditorMarca()" class="flex-1 sm:flex-none border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+                Cancelar
+              </button>
+            }
+          </div>
+        </form>
+
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
+          <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Marcas creadas
+          </div>
+          <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
+            @for (marca of marcas; track marca.id) {
+              <div class="flex items-center justify-between gap-3 px-4 py-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ marca.nombre }}</p>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full {{ estadoClase(marca.estado) }}">
+                      {{ marca.estado }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                </div>
+                <div class="flex gap-1.5 shrink-0">
+                  <button type="button" (click)="iniciarEdicionMarca(marca)" aria-label="Editar marca" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-pencil text-sm text-gray-500"></i>
+                  </button>
+                  <button type="button" (click)="cambiarEstadoMarca(marca)" [attr.aria-label]="marca.estado === 'ACTIVO' ? 'Desactivar marca' : 'Activar marca'" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="marca.estado === 'ACTIVO'" [class.bi-toggle-off]="marca.estado === 'INACTIVO'"></i>
+                  </button>
+                </div>
+              </div>
+            } @empty {
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas creadas.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (mostrarModalCategorias) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cerrarModalCategorias()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div>
+          <h2 class="text-base font-semibold text-gray-800">Administrar categorías</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Crea, edita o cambia el estado de las categorías.</p>
+        </div>
+        <button type="button" (click)="cerrarModalCategorias()" aria-label="Cerrar modal de categorías" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+
+      <div class="flex min-h-0 flex-1 flex-col space-y-5 px-6 py-5">
+        <form (ngSubmit)="guardarCategoria()" class="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <div class="flex-1">
+            <label for="categoryName" class="block text-sm font-medium text-gray-600 mb-1">
+              {{ categoriaEditando ? 'Editar categoría' : 'Nueva categoría' }}
+            </label>
+            <input id="categoryName" type="text" [ngModel]="categoriaTexto" name="categoriaTexto" (input)="actualizarTextoCategoria($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre de categoría">
+            @if (categoriaError) {
+              <p class="text-xs text-red-500 mt-1">{{ categoriaError }}</p>
+            }
+            @if (categoriaMensaje) {
+              <p class="text-xs text-green-600 mt-1">{{ categoriaMensaje }}</p>
+            }
+          </div>
+          <div class="flex gap-2 sm:items-end">
+            <button type="submit" class="flex-1 sm:flex-none bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+              {{ categoriaEditando ? 'Actualizar' : 'Agregar' }}
+            </button>
+            @if (categoriaEditando) {
+              <button type="button" (click)="reiniciarEditorCategoria()" class="flex-1 sm:flex-none border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+                Cancelar
+              </button>
+            }
+          </div>
+        </form>
+
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
+          <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Categorías creadas
+          </div>
+          <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
+            @for (categoria of categorias; track categoria.id) {
+              <div class="flex items-center justify-between gap-3 px-4 py-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ categoria.nombre }}</p>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full {{ estadoClase(categoria.estado) }}">
+                      {{ categoria.estado }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                </div>
+                <div class="flex gap-1.5 shrink-0">
+                  <button type="button" (click)="iniciarEdicionCategoria(categoria)" aria-label="Editar categoría" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-pencil text-sm text-gray-500"></i>
+                  </button>
+                  <button type="button" (click)="cambiarEstadoCategoria(categoria)" [attr.aria-label]="categoria.estado === 'ACTIVO' ? 'Desactivar categoría' : 'Activar categoría'" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="categoria.estado === 'ACTIVO'" [class.bi-toggle-off]="categoria.estado === 'INACTIVO'"></i>
+                  </button>
+                </div>
+              </div>
+            } @empty {
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías creadas.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

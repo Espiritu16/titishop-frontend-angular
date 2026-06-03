@@ -1,18 +1,18 @@
-<div class="card topbar p-3 p-md-4 d-flex justify-content-between align-items-center gap-3">
-  <div class="topbar-title">
-    <h5 class="mb-1">Sistema de Gestión de Inventario</h5>
-    <small>TitiShop Perú</small>
+<div class="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_10px_28px_rgba(28,50,89,0.11)] backdrop-blur md:flex-row md:items-center md:justify-between">
+  <div>
+    <h5 class="mb-1 text-base font-extrabold text-slate-700">Sistema de Gestión de Inventario</h5>
+    <small class="text-sm text-slate-500">TitiShop Perú</small>
   </div>
-  <div class="d-flex align-items-center gap-3">
-    <div class="topbar-tag d-none d-md-flex align-items-center gap-2">
+  <div class="flex items-center gap-3">
+    <div class="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-500 md:flex">
       <i class="bi bi-shield-check"></i>
       <small>Operación interna segura</small>
     </div>
-    <div class="topbar-user d-flex align-items-center gap-2">
-      <span class="topbar-user-dot"></span>
-      <div class="d-flex flex-column lh-sm">
-        <strong>{{ auth.session()?.fullName || 'Usuario sin sesión' }}</strong>
-        <small>{{ auth.session()?.role || 'Sin rol' }}</small>
+    <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5">
+      <span class="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_0_0_3px_rgba(89,194,152,0.2)]"></span>
+      <div class="flex flex-col leading-tight">
+        <strong class="text-xs font-bold text-slate-700">{{ auth.session()?.fullName || 'Usuario sin sesión' }}</strong>
+        <small class="text-[11px] text-slate-500">{{ auth.session()?.role || 'Sin rol' }}</small>
       </div>
     </div>
   </div>

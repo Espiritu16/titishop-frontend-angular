@@ -1,0 +1,189 @@
+<header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shrink-0">
+  <div class="flex items-center gap-2 text-sm text-gray-400">
+    <i class="bi bi-house"></i>
+    <i class="bi bi-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium">Proveedores</span>
+  </div>
+</header>
+
+<main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <h1 class="text-xl font-bold text-gray-800">Proveedores</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Directorio de proveedores activos</p>
+    </div>
+    <button (click)="cancelarEdicion(); mostrarModal = true" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+      <i class="bi bi-plus-lg"></i>
+      <span class="hidden sm:inline">Nuevo proveedor</span>
+      <span class="sm:hidden">Nuevo</span>
+    </button>
+  </div>
+
+  @if (estadoListado === 'cargando') {
+    <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando proveedores...</div>
+  } @else if (estadoListado === 'error') {
+    <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ errorListado }}</div>
+  } @else {
+  <div class="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div class="h-full overflow-auto p-3 xl:p-0">
+      <div class="space-y-3 xl:hidden">
+        @for (p of proveedores; track p.id) {
+          <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div class="mb-3 flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="truncate text-base font-semibold text-gray-800">{{ p.razonSocial }}</h2>
+                <p class="mt-0.5 font-mono text-xs text-gray-400">{{ p.ruc }}</p>
+              </div>
+              <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{estadoClase(p.estado)}}">{{ p.estado }}</span>
+            </div>
+            <dl class="space-y-2 text-sm">
+              <div class="min-w-0">
+                <dt class="text-xs font-medium text-gray-400">Correo</dt>
+                <dd class="truncate text-gray-700">{{ p.email || '-' }}</dd>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Celular</dt>
+                  <dd class="text-gray-700">{{ p.celular || '-' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-400">Fecha</dt>
+                  <dd class="text-gray-700">{{ p.creadoEn | date:'dd/MM/yy' }}</dd>
+                </div>
+              </div>
+            </dl>
+            <div class="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-3">
+              <button (click)="editarProveedor(p); mostrarModal = true" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors" aria-label="Editar proveedor">
+                <i class="bi bi-pencil text-sm text-gray-500"></i>
+              </button>
+              <button (click)="cambiarEstadoProveedor(p)" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors" aria-label="Cambiar estado de proveedor">
+                <i class="bi bi-toggle-on text-sm text-gray-500"></i>
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <div class="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">No hay proveedores registrados.</div>
+        }
+      </div>
+
+      <table class="hidden w-full min-w-[560px] text-sm xl:table">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100 text-gray-400">
+            <th class="px-4 py-3 text-left font-medium">Razón social</th>
+            <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">RUC</th>
+            <th class="px-4 py-3 text-left font-medium hidden md:table-cell">Contacto</th>
+            <th class="px-4 py-3 text-left font-medium">Correo</th>
+            <th class="px-4 py-3 text-left font-medium">Estado</th>
+            <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Fecha</th>
+            <th class="px-4 py-3 text-left font-medium">Acc.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of proveedores; track p.id) {
+            <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+              <td class="px-4 py-3 font-medium text-gray-800">{{ p.razonSocial }}</td>
+              <td class="px-4 py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{{ p.ruc }}</td>
+              <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ p.celular || '-' }}</td>
+              <td class="px-4 py-3 text-gray-600 text-xs">{{ p.email || '-' }}</td>
+              <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{estadoClase(p.estado)}}">{{ p.estado }}</span></td>
+              <td class="px-4 py-3 text-gray-400 hidden lg:table-cell">{{ p.creadoEn | date:'dd/MM/yy' }}</td>
+              <td class="px-4 py-3">
+                <div class="flex gap-1.5">
+                  <button (click)="editarProveedor(p); mostrarModal = true" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
+                  </button>
+                  <button (click)="cambiarEstadoProveedor(p)" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <i class="bi bi-toggle-on text-sm text-gray-500 hover:text-red-500"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-400">No hay proveedores registrados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  }
+</main>
+
+@if (toastMessage) {
+  <div class="fixed top-4 right-4 z-[60] max-w-sm rounded-xl border px-4 py-3 shadow-lg {{ toastClass() }}">
+    <div class="flex items-start gap-3">
+      <i class="bi text-base mt-0.5" [class.bi-check-circle-fill]="toastType === 'success'" [class.bi-exclamation-triangle-fill]="toastType === 'error'"></i>
+      <p class="text-sm font-medium leading-5">{{ toastMessage }}</p>
+    </div>
+  </div>
+}
+
+@if (mostrarModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" (click)="cancelarEdicion()">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-800">{{ editandoId ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2>
+        <button type="button" (click)="cancelarEdicion()" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <i class="bi bi-x-lg text-gray-500 text-sm"></i>
+        </button>
+      </div>
+      <form [formGroup]="proveedorForm" (ngSubmit)="guardarProveedor()" class="px-6 py-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">RUC *</label>
+            <div class="flex gap-2">
+              <input type="text" formControlName="ruc" (input)="onRucInput($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="00000000000">
+              <button type="button" (click)="consultarRuc()" [disabled]="consultandoRuc || proveedorForm.controls.ruc.invalid" class="shrink-0 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+                {{ consultandoRuc ? 'Consultando' : 'Consultar' }}
+              </button>
+            </div>
+            @if (errorRuc || fieldError('ruc')) {
+              <p class="mt-1 text-xs text-red-600">{{ errorRuc || fieldError('ruc') }}</p>
+            }
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Razón social *</label>
+            <input type="text" formControlName="razonSocial" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none" placeholder="Se completa al consultar el RUC">
+            @if (fieldError('razonSocial')) {
+              <p class="mt-1 text-xs text-red-600">{{ fieldError('razonSocial') }}</p>
+            }
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Dirección *</label>
+            <input type="text" formControlName="direccion" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none" placeholder="Se completa al consultar el RUC">
+            @if (fieldError('direccion')) {
+              <p class="mt-1 text-xs text-red-600">{{ fieldError('direccion') }}</p>
+            }
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Celular</label>
+            <input type="text" formControlName="celular" (input)="onCelularInput($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="987654321">
+            @if (fieldError('celular')) {
+              <p class="mt-1 text-xs text-red-600">{{ fieldError('celular') }}</p>
+            }
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Teléfono</label>
+            <input type="text" formControlName="telefono" (input)="onTelefonoInput($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="012345678">
+            @if (fieldError('telefono')) {
+              <p class="mt-1 text-xs text-red-600">{{ fieldError('telefono') }}</p>
+            }
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Correo</label>
+            <input type="email" formControlName="email" (input)="onEmailInput($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="email@empresa.pe">
+            @if (fieldError('email')) {
+              <p class="mt-1 text-xs text-red-600">{{ fieldError('email') }}</p>
+            }
+          </div>
+        </div>
+        <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
+          <button type="submit" [disabled]="!puedeGuardar()" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>
+          <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

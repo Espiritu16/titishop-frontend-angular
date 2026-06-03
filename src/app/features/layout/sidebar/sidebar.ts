@@ -32,8 +32,7 @@ export class Sidebar {
   constructor(public auth: AuthService) {}
 
   canShow(item: SidebarItem): boolean {
-    if (!item.roles) return true;
-    return this.auth.hasAnyRole(item.roles);
+    return true;
   }
 
   logout(): void {

@@ -1,29 +1,29 @@
-<aside class="sidebar p-3 d-flex flex-column">
-  <div class="brand mb-4">
-    <div class="brand-icon mb-2">
+<aside class="flex min-h-screen w-[260px] flex-col border-r border-slate-200/90 bg-white/70 p-3 shadow-[inset_-1px_0_0_rgba(221,231,242,0.85)] backdrop-blur max-[900px]:w-[86px] max-[900px]:overflow-hidden">
+  <div class="mb-4">
+    <div class="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-pink-200/60 to-sky-200/70 text-slate-700">
       <i class="bi bi-bag-heart-fill"></i>
     </div>
-    <h5 class="mb-0">TITI SHOP</h5>
-    <small>Inventario interno</small>
+    <h5 class="m-0 font-extrabold text-slate-700 max-[900px]:whitespace-nowrap">TITI SHOP</h5>
+    <small class="text-slate-500 max-[900px]:whitespace-nowrap">Inventario interno</small>
   </div>
 
-  <nav class="nav flex-column gap-1">
+  <nav class="flex flex-col gap-1">
     @for (item of items; track item.path) {
       @if (canShow(item)) {
-        <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
-          <i [ngClass]="[item.icon, 'me-2']"></i>{{ item.label }}
+        <a [routerLink]="item.path" routerLinkActive="bg-gradient-to-r from-sky-100/80 to-pink-100/60 text-slate-700 font-bold shadow-[inset_3px_0_0_#6b9de6]" class="rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:translate-x-0.5 hover:bg-sky-100/50 max-[900px]:text-[0]">
+          <i [ngClass]="item.icon" class="mr-2 text-base max-[900px]:mr-0"></i>{{ item.label }}
         </a>
       }
     }
   </nav>
 
-  <div class="sidebar-footer mt-auto pt-3">
-    <div class="user-box mb-2">
-      <div class="fw-semibold">{{ auth.session()?.fullName || 'Usuario sin sesión' }}</div>
-      <small>{{ auth.session()?.role || 'Sin rol' }}</small>
+  <div class="mt-auto border-t border-slate-200/90 pt-3">
+    <div class="mb-2 rounded-xl border border-emerald-200/70 bg-emerald-100/40 px-3 py-2 max-[900px]:min-h-8 max-[900px]:text-[0]">
+      <div class="font-semibold text-slate-700">{{ auth.session()?.fullName || 'Usuario sin sesión' }}</div>
+      <small class="text-slate-500">{{ auth.session()?.role || 'Sin rol' }}</small>
     </div>
-    <button class="btn btn-danger btn-sm w-100" (click)="logout()">
-      <i class="bi bi-box-arrow-right me-1"></i>Salir
+    <button class="w-full rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 px-3 py-2 text-sm font-bold text-white shadow-[0_8px_18px_rgba(201,67,103,0.3)] transition hover:brightness-105 max-[900px]:text-[0]" (click)="logout()">
+      <i class="bi bi-box-arrow-right mr-1 max-[900px]:mr-0 max-[900px]:text-base"></i>Salir
     </button>
   </div>
 </aside>

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -10,10 +11,11 @@ import { AuthService } from '../../core/auth.service';
   styleUrl: './login.scss',
 })
 export class Login {
-  email = 'kevin@titishop.com';
-  password = '123456';
+  email = 'kevin@gmail.com';
+  password = 'kevin123';
   error = '';
   message = '';
+  loading = false;
 
   constructor(
     private auth: AuthService,
@@ -21,7 +23,7 @@ export class Login {
   ) {}
 
   get canSubmit(): boolean {
-    return !!this.email.trim() && !!this.password.trim();
+    return !!this.email.trim() && !!this.password.trim() && !this.loading;
   }
 
   submit(): void {
@@ -37,13 +39,17 @@ export class Login {
       return;
     }
 
-    const result = this.auth.login(this.email, this.password);
-    if (!result.ok) {
-      this.error = result.message;
-      return;
-    }
-
-    this.message = result.message;
-    void this.router.navigate(['/']);
+    this.loading = true;
+    this.auth.login(this.email, this.password).subscribe({
+      next: () => {
+        this.loading = false;
+        this.message = 'Inicio de sesión correcto.';
+        void this.router.navigate(['/']);
+      },
+      error: (error: unknown) => {
+        this.loading = false;
+        this.error = getApiErrorMessage(error);
+      },
+    });
   }
 }
