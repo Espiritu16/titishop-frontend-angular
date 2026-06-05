@@ -33,8 +33,32 @@
       No hay usuarios registrados.
     </div>
   } @else {
+  <div class="mb-3 grid shrink-0 grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[minmax(220px,1fr)_170px_170px_auto]">
+    <label class="relative block">
+      <span class="sr-only">Buscar usuarios</span>
+      <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+      <input type="search" [(ngModel)]="filtrosUsuario.busqueda" name="busquedaUsuarios" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, correo o rol">
+    </label>
+    <label>
+      <span class="sr-only">Filtrar usuarios por rol</span>
+      <select [(ngModel)]="filtrosUsuario.rol" name="rolUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+        @for (rol of rolesFiltro; track rol) {
+          <option [value]="rol">{{ rol === 'TODOS' ? 'Todos los roles' : rol }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Filtrar usuarios por estado</span>
+      <select [(ngModel)]="filtrosUsuario.estado" name="estadoUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+        @for (estado of estadosUsuario; track estado) {
+          <option [value]="estado">{{ estado === 'TODOS' ? 'Todos los estados' : estado }}</option>
+        }
+      </select>
+    </label>
+    <button type="button" (click)="limpiarFiltrosUsuarios()" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Limpiar</button>
+  </div>
   <div class="block min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 xl:hidden">
-    @for (u of usuarios; track u.id) {
+    @for (u of usuariosFiltrados; track u.id) {
       <article class="bg-white rounded-xl border border-gray-200 p-4">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
@@ -54,6 +78,10 @@
           <span class="text-xs text-gray-400 ml-auto">{{ u.creadoEn | date:'dd/MM/yy' }}</span>
         </div>
       </article>
+    } @empty {
+      <div class="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+        No hay usuarios para los filtros seleccionados.
+      </div>
     }
   </div>
 
@@ -71,7 +99,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (u of usuarios; track u.id) {
+          @for (u of usuariosFiltrados; track u.id) {
             <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2.5">
@@ -95,6 +123,10 @@
                   </button>
                 </div>
               </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">No hay usuarios para los filtros seleccionados.</td>
             </tr>
           }
         </tbody>

@@ -1,9 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
 import { EstadoInventario, InventarioResponse, ProductoResponse } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { InventarioService } from './inventario.service';
@@ -13,7 +14,7 @@ type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO';
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
   selector: 'app-inventario',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './inventario.html',
   styleUrl: './inventario.scss',
 })
@@ -26,8 +27,15 @@ export class Inventario {
   productos: ProductoResponse[] = [];
   mostrarModal = false;
   enviando = false;
+  filtrosInventario = {
+    busqueda: '',
+    estado: 'TODOS' as FiltroTodos<EstadoInventario>,
+    stock: 'TODOS' as FiltroTodos<EstadoStock>,
+  };
 
   readonly inventarioForm;
+  readonly estadosInventario: Array<FiltroTodos<EstadoInventario>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
+  readonly estadosStock: Array<FiltroTodos<EstadoStock>> = ['TODOS', 'NORMAL', 'BAJO', 'AGOTADO'];
 
   constructor(
     private fb: FormBuilder,
@@ -49,6 +57,15 @@ export class Inventario {
       (producto) =>
         producto.estado === 'ACTIVO' &&
         (!productoIdsConInventario.has(producto.id) || producto.id === this.productoEditandoId())
+    );
+  }
+
+  get inventariosFiltrados(): InventarioResponse[] {
+    return ordenarPorCreacionDesc(this.inventarios).filter(
+      (item) =>
+        buscarEnCampos(item, this.filtrosInventario.busqueda, ['productoNombre', 'productoSku', 'ubicacion']) &&
+        coincideFiltro(item.estado, this.filtrosInventario.estado) &&
+        coincideFiltro(this.estadoStock(item), this.filtrosInventario.stock)
     );
   }
 
@@ -78,6 +95,14 @@ export class Inventario {
 
   bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
     if (['e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+  }
+
+  limpiarFiltrosInventario(): void {
+    this.filtrosInventario = {
+      busqueda: '',
+      estado: 'TODOS',
+      stock: 'TODOS',
+    };
   }
 
   guardarInventario(): void {

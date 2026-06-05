@@ -1,8 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
 import { EstadoProveedor, ProveedorResponse } from '../../core/models';
 import { ProveedoresService } from './proveedores.service';
 
@@ -11,7 +12,7 @@ type ToastType = 'success' | 'error';
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
   selector: 'app-proveedores',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './proveedores.html',
   styleUrl: './proveedores.scss',
 })
@@ -27,9 +28,14 @@ export class Proveedores {
   enviando = false;
   consultandoRuc = false;
   mostrarModal = false;
+  filtrosProveedor = {
+    busqueda: '',
+    estado: 'TODOS' as FiltroTodos<EstadoProveedor>,
+  };
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly proveedorForm;
+  readonly estadosProveedor: Array<FiltroTodos<EstadoProveedor>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
 
   constructor(
     private fb: FormBuilder,
@@ -44,6 +50,20 @@ export class Proveedores {
       direccion: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(160)]],
     });
     this.cargarProveedores();
+  }
+
+  get proveedoresFiltrados(): ProveedorResponse[] {
+    return ordenarPorCreacionDesc(this.proveedores).filter(
+      (proveedor) =>
+        buscarEnCampos(proveedor, this.filtrosProveedor.busqueda, [
+          'razonSocial',
+          'ruc',
+          'celular',
+          'telefono',
+          'email',
+          'direccion',
+        ]) && coincideFiltro(proveedor.estado, this.filtrosProveedor.estado)
+    );
   }
 
   cargarProveedores(): void {
@@ -105,6 +125,13 @@ export class Proveedores {
         this.consultandoRuc = false;
       },
     });
+  }
+
+  limpiarFiltrosProveedores(): void {
+    this.filtrosProveedor = {
+      busqueda: '',
+      estado: 'TODOS',
+    };
   }
 
   guardarProveedor(): void {

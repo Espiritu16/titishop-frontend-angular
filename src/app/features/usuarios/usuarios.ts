@@ -1,15 +1,16 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
 import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
 import { UsuariosService } from './usuarios.service';
 
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
   selector: 'app-usuarios',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './usuarios.html',
   styleUrl: './usuarios.scss',
 })
@@ -22,7 +23,14 @@ export class Usuarios {
   enviando = false;
 
   readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
+  readonly rolesFiltro: Array<FiltroTodos<RolUsuario>> = ['TODOS', ...this.roles];
+  readonly estadosUsuario: Array<FiltroTodos<EstadoCatalogo>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
   usuarios: UsuarioResponse[] = [];
+  filtrosUsuario = {
+    busqueda: '',
+    rol: 'TODOS' as FiltroTodos<RolUsuario>,
+    estado: 'TODOS' as FiltroTodos<EstadoCatalogo>,
+  };
   readonly usuarioForm;
   private readonly namePattern = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
 
@@ -43,6 +51,15 @@ export class Usuarios {
     return this.usuarioForm.valid && !this.enviando;
   }
 
+  get usuariosFiltrados(): UsuarioResponse[] {
+    return ordenarPorCreacionDesc(this.usuarios).filter(
+      (usuario) =>
+        buscarEnCampos(usuario, this.filtrosUsuario.busqueda, ['nombreCompleto', 'email', 'rol']) &&
+        coincideFiltro(usuario.rol, this.filtrosUsuario.rol) &&
+        coincideFiltro(usuario.estado, this.filtrosUsuario.estado)
+    );
+  }
+
   cargarUsuarios(): void {
     this.estadoListado = 'cargando';
     this.errorListado = '';
@@ -56,6 +73,14 @@ export class Usuarios {
         this.errorListado = getApiErrorMessage(error);
       },
     });
+  }
+
+  limpiarFiltrosUsuarios(): void {
+    this.filtrosUsuario = {
+      busqueda: '',
+      rol: 'TODOS',
+      estado: 'TODOS',
+    };
   }
 
   guardarUsuario(): void {
