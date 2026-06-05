@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
 import { MovimientoResponse, ProductoResponse, ProveedorResponse, TipoMovimiento } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { ProveedoresService } from '../proveedores/proveedores.service';
@@ -13,7 +14,7 @@ import { MovimientosService } from './movimientos.service';
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
   selector: 'app-movimientos',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   templateUrl: './movimientos.html',
   styleUrl: './movimientos.scss',
 })
@@ -27,8 +28,15 @@ export class Movimientos {
   movimientos: MovimientoResponse[] = [];
   productos: ProductoResponse[] = [];
   proveedores: ProveedorResponse[] = [];
+  filtrosMovimiento = {
+    busqueda: '',
+    tipo: 'TODOS' as FiltroTodos<TipoMovimiento>,
+    estado: 'TODOS' as FiltroTodos<'VIGENTE' | 'ANULADO'>,
+  };
 
   readonly tiposMovimiento: TipoMovimiento[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
+  readonly tiposMovimientoFiltro: Array<FiltroTodos<TipoMovimiento>> = ['TODOS', ...this.tiposMovimiento];
+  readonly estadosMovimientoFiltro: Array<FiltroTodos<'VIGENTE' | 'ANULADO'>> = ['TODOS', 'VIGENTE', 'ANULADO'];
   readonly movimientoForm;
 
   constructor(
@@ -59,6 +67,21 @@ export class Movimientos {
 
   get proveedoresActivos(): ProveedorResponse[] {
     return this.proveedores.filter((proveedor) => proveedor.estado === 'ACTIVO');
+  }
+
+  get movimientosFiltrados(): MovimientoResponse[] {
+    return ordenarPorCreacionDesc(this.movimientos).filter(
+      (movimiento) =>
+        buscarEnCampos(movimiento, this.filtrosMovimiento.busqueda, [
+          'productoNombre',
+          'productoSku',
+          'proveedorRazonSocial',
+          'motivo',
+          'creadoPorNombre',
+        ]) &&
+        coincideFiltro(movimiento.tipo, this.filtrosMovimiento.tipo) &&
+        coincideFiltro(this.estadoMovimiento(movimiento), this.filtrosMovimiento.estado)
+    );
   }
 
   get puedeGuardar(): boolean {
@@ -101,6 +124,14 @@ export class Movimientos {
 
   bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
     if (['e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+  }
+
+  limpiarFiltrosMovimientos(): void {
+    this.filtrosMovimiento = {
+      busqueda: '',
+      tipo: 'TODOS',
+      estado: 'TODOS',
+    };
   }
 
   registrarMovimiento(): void {
@@ -189,6 +220,10 @@ export class Movimientos {
 
   estaAnulado(movimiento: MovimientoResponse): boolean {
     return !!movimiento.anuladoEn;
+  }
+
+  estadoMovimiento(movimiento: MovimientoResponse): 'VIGENTE' | 'ANULADO' {
+    return this.estaAnulado(movimiento) ? 'ANULADO' : 'VIGENTE';
   }
 
   private configurarTipoMovimiento(tipo: TipoMovimiento): void {

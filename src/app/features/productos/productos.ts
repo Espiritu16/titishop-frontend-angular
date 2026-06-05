@@ -4,6 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
 import {
   CategoriaResponse,
   ArchivoResponse,
@@ -47,8 +48,15 @@ export class Productos {
   imagenProductoNombre = '';
   imagenProductoPreview = '';
   imagenProductoError = '';
+  filtrosProducto = {
+    busqueda: '',
+    estado: 'TODOS' as FiltroTodos<EstadoProducto>,
+    categoriaId: 'TODOS',
+    marcaId: 'TODOS',
+  };
 
   readonly productoForm;
+  readonly estadosProducto: Array<FiltroTodos<EstadoProducto>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
 
   constructor(
     private fb: FormBuilder,
@@ -75,6 +83,22 @@ export class Productos {
 
   get marcasActivas(): MarcaResponse[] {
     return this.marcas.filter((marca) => marca.estado === 'ACTIVO');
+  }
+
+  get productosFiltrados(): ProductoResponse[] {
+    return ordenarPorCreacionDesc(this.productos).filter(
+      (producto) =>
+        buscarEnCampos(producto, this.filtrosProducto.busqueda, [
+          'nombre',
+          'sku',
+          'categoriaNombre',
+          'marcaNombre',
+        ]) &&
+        coincideFiltro(producto.estado, this.filtrosProducto.estado) &&
+        (this.filtrosProducto.categoriaId === 'TODOS' ||
+          producto.categoriaId === this.filtrosProducto.categoriaId) &&
+        (this.filtrosProducto.marcaId === 'TODOS' || producto.marcaId === this.filtrosProducto.marcaId)
+    );
   }
 
   get opcionesCategoriaProducto(): CategoriaResponse[] {
@@ -105,6 +129,15 @@ export class Productos {
     if (['e', 'E', '+', '-'].includes(event.key)) {
       event.preventDefault();
     }
+  }
+
+  limpiarFiltrosProductos(): void {
+    this.filtrosProducto = {
+      busqueda: '',
+      estado: 'TODOS',
+      categoriaId: 'TODOS',
+      marcaId: 'TODOS',
+    };
   }
 
   abrirModalProducto(): void {
