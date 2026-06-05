@@ -6,12 +6,15 @@
   --ts-ink: #1d2430;
   --ts-soft-bg: #f7fafd;
   --ts-border: #dde7f2;
-  --ts-card: rgba(255, 255, 255, 0.86);
   --ts-white: #ffffff;
   --ts-primary: #6b9de6;
   --ts-primary-dark: #4f83d4;
   --ts-sidebar: rgba(255, 255, 255, 0.72);
   --ts-shadow: 0 10px 28px rgba(28, 50, 89, 0.11);
+}
+
+html {
+  font-size: 17px;
 }
 
 body {
@@ -23,95 +26,6 @@ body {
     radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.55) 0%, transparent 38%),
     radial-gradient(circle at 100% 100%, rgba(243, 169, 194, 0.28) 0%, transparent 42%),
     linear-gradient(120deg, var(--ts-mint), var(--ts-sky));
-}
-
-.card {
-  border: 1px solid rgba(221, 231, 242, 0.9);
-  border-radius: 14px;
-  background: var(--ts-card);
-  box-shadow: var(--ts-shadow);
-}
-
-.table {
-  --bs-table-bg: transparent;
-  --bs-table-striped-bg: rgba(175, 207, 244, 0.12);
-  --bs-table-hover-bg: rgba(191, 236, 221, 0.22);
-}
-
-.table thead th {
-  background: rgba(175, 207, 244, 0.25);
-  color: #2a446f;
-  border-bottom: 0;
-  font-size: 0.83rem;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
-
-.table tbody td {
-  vertical-align: middle;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--ts-primary), var(--ts-primary-dark));
-  border: none;
-  box-shadow: 0 8px 20px rgba(79, 131, 212, 0.3);
-}
-
-.btn-primary:hover {
-  filter: brightness(1.03);
-}
-
-.btn-outline-primary {
-  border-color: #84aeea;
-  color: #3f70bb;
-}
-
-.btn-outline-primary:hover {
-  background: rgba(175, 207, 244, 0.3);
-  border-color: #84aeea;
-  color: #2f5da6;
-}
-
-.btn {
-  border-radius: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-
-.btn-success {
-  background: linear-gradient(135deg, #5bbf9e, #3aa77f);
-  border: none;
-  box-shadow: 0 8px 18px rgba(58, 167, 127, 0.28);
-}
-
-.btn-danger {
-  background: linear-gradient(135deg, #df6f89, #cf4c6d);
-  border: none;
-  box-shadow: 0 8px 18px rgba(201, 67, 103, 0.3);
-}
-
-.btn-danger:hover,
-.btn-success:hover {
-  filter: brightness(1.03);
-}
-
-.form-control,
-.form-select {
-  border-radius: 10px;
-  border-color: #d8e4f3;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.form-control:focus,
-.form-select:focus {
-  border-color: #83aeea;
-  box-shadow: 0 0 0 0.2rem rgba(131, 174, 234, 0.2);
-}
-
-.badge {
-  border-radius: 999px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
 }
 
 .app-page {
@@ -139,6 +53,10 @@ body {
 }
 
 @media (max-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+
   .page-title {
     font-size: 1.3rem;
   }

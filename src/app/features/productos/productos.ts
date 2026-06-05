@@ -1,0 +1,575 @@
+import { DatePipe } from '@angular/common';
+import { Component } from '@angular/core';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
+import { getApiErrorMessage } from '../../core/api-error';
+import { EstadoCarga } from '../../core/estado-carga';
+import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
+import {
+  CategoriaResponse,
+  ArchivoResponse,
+  EstadoCatalogo,
+  EstadoProducto,
+  MarcaResponse,
+  ProductoResponse,
+} from '../../core/models';
+import { CategoriasService } from './categorias.service';
+import { MarcasService } from './marcas.service';
+import { ProductosService } from './productos.service';
+
+@Component({
+  host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
+  selector: 'app-productos',
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
+  templateUrl: './productos.html',
+  styleUrl: './productos.scss',
+})
+export class Productos {
+  mensaje = '';
+  errorListado = '';
+  estadoListado: EstadoCarga = 'inicial';
+  editandoId: string | null = null;
+  mostrarModal = false;
+  mostrarModalCategorias = false;
+  mostrarModalMarcas = false;
+  productos: ProductoResponse[] = [];
+  categorias: CategoriaResponse[] = [];
+  marcas: MarcaResponse[] = [];
+  categoriaError = '';
+  categoriaMensaje = '';
+  categoriaTexto = '';
+  categoriaEditandoId: string | null = null;
+  marcaError = '';
+  marcaMensaje = '';
+  marcaTexto = '';
+  marcaEditandoId: string | null = null;
+  enviando = false;
+  imagenProductoSeleccionada: File | null = null;
+  imagenProductoNombre = '';
+  imagenProductoPreview = '';
+  imagenProductoError = '';
+  filtrosProducto = {
+    busqueda: '',
+    estado: 'TODOS' as FiltroTodos<EstadoProducto>,
+    categoriaId: 'TODOS',
+    marcaId: 'TODOS',
+  };
+
+  readonly productoForm;
+  readonly estadosProducto: Array<FiltroTodos<EstadoProducto>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
+
+  constructor(
+    private fb: FormBuilder,
+    private productosService: ProductosService,
+    private categoriasService: CategoriasService,
+    private marcasService: MarcasService
+  ) {
+    this.productoForm = this.fb.nonNullable.group({
+      nombre: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
+      sku: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(40)]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(2000)]],
+      imagenUrl: ['', [Validators.maxLength(500)]],
+      categoriaId: ['', [Validators.required]],
+      marcaId: ['', [Validators.required]],
+      precioCompra: [0, [Validators.required, Validators.min(0)]],
+      precioVenta: [0, [Validators.required, Validators.min(0)]],
+    });
+    this.cargarDatos();
+  }
+
+  get categoriasActivas(): CategoriaResponse[] {
+    return this.categorias.filter((categoria) => categoria.estado === 'ACTIVO');
+  }
+
+  get marcasActivas(): MarcaResponse[] {
+    return this.marcas.filter((marca) => marca.estado === 'ACTIVO');
+  }
+
+  get productosFiltrados(): ProductoResponse[] {
+    return ordenarPorCreacionDesc(this.productos).filter(
+      (producto) =>
+        buscarEnCampos(producto, this.filtrosProducto.busqueda, [
+          'nombre',
+          'sku',
+          'categoriaNombre',
+          'marcaNombre',
+        ]) &&
+        coincideFiltro(producto.estado, this.filtrosProducto.estado) &&
+        (this.filtrosProducto.categoriaId === 'TODOS' ||
+          producto.categoriaId === this.filtrosProducto.categoriaId) &&
+        (this.filtrosProducto.marcaId === 'TODOS' || producto.marcaId === this.filtrosProducto.marcaId)
+    );
+  }
+
+  get opcionesCategoriaProducto(): CategoriaResponse[] {
+    const seleccionada = this.productoForm.controls.categoriaId.value;
+    const categoria = this.categorias.find((item) => item.id === seleccionada);
+    if (!categoria || categoria.estado === 'ACTIVO') return this.categoriasActivas;
+    return [categoria, ...this.categoriasActivas];
+  }
+
+  get opcionesMarcaProducto(): MarcaResponse[] {
+    const seleccionada = this.productoForm.controls.marcaId.value;
+    const marca = this.marcas.find((item) => item.id === seleccionada);
+    if (!marca || marca.estado === 'ACTIVO') return this.marcasActivas;
+    return [marca, ...this.marcasActivas];
+  }
+
+  get categoriaEditando(): CategoriaResponse | null {
+    if (!this.categoriaEditandoId) return null;
+    return this.categorias.find((categoria) => categoria.id === this.categoriaEditandoId) ?? null;
+  }
+
+  get marcaEditando(): MarcaResponse | null {
+    if (!this.marcaEditandoId) return null;
+    return this.marcas.find((marca) => marca.id === this.marcaEditandoId) ?? null;
+  }
+
+  bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
+    if (['e', 'E', '+', '-'].includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  limpiarFiltrosProductos(): void {
+    this.filtrosProducto = {
+      busqueda: '',
+      estado: 'TODOS',
+      categoriaId: 'TODOS',
+      marcaId: 'TODOS',
+    };
+  }
+
+  abrirModalProducto(): void {
+    this.cancelarEdicion();
+    this.mostrarModal = true;
+  }
+
+  abrirModalCategorias(): void {
+    this.mostrarModalCategorias = true;
+    this.categoriaMensaje = '';
+    this.reiniciarEditorCategoria();
+  }
+
+  abrirModalMarcas(): void {
+    this.mostrarModalMarcas = true;
+    this.marcaMensaje = '';
+    this.reiniciarEditorMarca();
+  }
+
+  cerrarModalCategorias(): void {
+    this.mostrarModalCategorias = false;
+    this.categoriaMensaje = '';
+    this.reiniciarEditorCategoria();
+  }
+
+  cerrarModalMarcas(): void {
+    this.mostrarModalMarcas = false;
+    this.marcaMensaje = '';
+    this.reiniciarEditorMarca();
+  }
+
+  cargarDatos(): void {
+    this.estadoListado = 'cargando';
+    this.errorListado = '';
+    forkJoin({
+      productos: this.productosService.listar(),
+      categorias: this.categoriasService.listar(),
+      marcas: this.marcasService.listar(),
+    }).subscribe({
+      next: ({ productos, categorias, marcas }) => {
+        this.productos = productos;
+        this.categorias = categorias;
+        this.marcas = marcas;
+        this.estadoListado = 'exito';
+        this.asegurarCatalogosSeleccionados();
+      },
+      error: (error: unknown) => {
+        this.estadoListado = 'error';
+        this.errorListado = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  guardarProducto(): void {
+    if (this.productoForm.invalid) {
+      this.productoForm.markAllAsTouched();
+      this.mensaje = 'Completa correctamente los campos obligatorios.';
+      return;
+    }
+
+    this.imagenProductoError = '';
+    const value = this.productoForm.getRawValue();
+    const requestBase = {
+      nombre: this.normalizarTexto(value.nombre),
+      sku: this.normalizarSku(value.sku),
+      descripcion: this.normalizarTexto(value.descripcion),
+      imagenUrl: this.normalizarOpcional(value.imagenUrl),
+      categoriaId: value.categoriaId,
+      marcaId: value.marcaId,
+      precioCompra: value.precioCompra,
+      precioVenta: value.precioVenta,
+    };
+
+    this.enviando = true;
+    const imagen$: Observable<ArchivoResponse | null> = this.imagenProductoSeleccionada
+      ? this.productosService.subirImagenProducto(this.imagenProductoSeleccionada)
+      : of(null);
+
+    imagen$
+      .pipe(
+        switchMap((imagen) => {
+          const request = {
+            ...requestBase,
+            imagenUrl: imagen?.url ?? requestBase.imagenUrl,
+          };
+          return this.editandoId
+            ? this.productosService.actualizar(this.editandoId, {
+                ...request,
+                estado: this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO',
+              })
+            : this.productosService.crear(request);
+        }),
+        finalize(() => {
+          this.enviando = false;
+        })
+      )
+      .subscribe({
+      next: () => {
+        this.mensaje = this.editandoId
+          ? 'Producto actualizado correctamente.'
+          : 'Producto registrado correctamente.';
+        this.cancelarEdicion();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.mensaje = getApiErrorMessage(error);
+      },
+      });
+  }
+
+  editarProducto(producto: ProductoResponse): void {
+    this.editandoId = producto.id;
+    this.mostrarModal = true;
+    this.productoForm.setValue({
+      nombre: producto.nombre,
+      sku: producto.sku,
+      descripcion: producto.descripcion,
+      imagenUrl: producto.imagenUrl ?? '',
+      categoriaId: producto.categoriaId,
+      marcaId: producto.marcaId,
+      precioCompra: producto.precioCompra,
+      precioVenta: producto.precioVenta,
+    });
+    this.limpiarImagenSeleccionada();
+    this.mensaje = `Editando producto ${producto.nombre}.`;
+  }
+
+  cancelarEdicion(): void {
+    this.mostrarModal = false;
+    this.editandoId = null;
+    this.productoForm.reset({
+      nombre: '',
+      sku: '',
+      descripcion: '',
+      imagenUrl: '',
+      categoriaId: this.categoriasActivas[0]?.id ?? '',
+      marcaId: this.marcasActivas[0]?.id ?? '',
+      precioCompra: 0,
+      precioVenta: 0,
+    });
+    this.limpiarImagenSeleccionada();
+  }
+
+  seleccionarImagenProducto(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const archivo = input.files?.[0] ?? null;
+    this.limpiarImagenSeleccionada();
+    if (!archivo) return;
+
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!tiposPermitidos.includes(archivo.type)) {
+      this.imagenProductoError = 'Selecciona una imagen JPG, PNG, WEBP o GIF.';
+      input.value = '';
+      return;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (archivo.size > maxBytes) {
+      this.imagenProductoError = 'La imagen no debe superar 5 MB.';
+      input.value = '';
+      return;
+    }
+
+    this.imagenProductoSeleccionada = archivo;
+    this.imagenProductoNombre = archivo.name;
+    this.imagenProductoPreview = URL.createObjectURL(archivo);
+  }
+
+  limpiarImagenSeleccionada(): void {
+    if (this.imagenProductoPreview) {
+      URL.revokeObjectURL(this.imagenProductoPreview);
+    }
+    this.imagenProductoSeleccionada = null;
+    this.imagenProductoNombre = '';
+    this.imagenProductoPreview = '';
+    this.imagenProductoError = '';
+  }
+
+  cambiarEstadoProducto(producto: ProductoResponse): void {
+    if (producto.estado === 'ACTIVO') {
+      this.productosService.inactivar(producto.id).subscribe({
+        next: () => {
+          this.mensaje = 'Producto desactivado correctamente.';
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
+      return;
+    }
+
+    this.productosService
+      .actualizar(producto.id, {
+        nombre: producto.nombre,
+        sku: producto.sku,
+        descripcion: producto.descripcion,
+        imagenUrl: producto.imagenUrl,
+        categoriaId: producto.categoriaId,
+        marcaId: producto.marcaId,
+        precioCompra: producto.precioCompra,
+        precioVenta: producto.precioVenta,
+        estado: 'ACTIVO',
+      })
+      .subscribe({
+        next: () => {
+          this.mensaje = 'Producto activado correctamente.';
+          this.cargarDatos();
+        },
+        error: (error: unknown) => {
+          this.mensaje = getApiErrorMessage(error);
+        },
+      });
+  }
+
+  iniciarEdicionCategoria(categoria: CategoriaResponse): void {
+    this.categoriaEditandoId = categoria.id;
+    this.categoriaTexto = categoria.nombre;
+    this.categoriaError = '';
+    this.categoriaMensaje = '';
+  }
+
+  guardarCategoria(): void {
+    this.categoriaError = '';
+    const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
+
+    if (!nombre) {
+      this.categoriaError = 'Ingrese una categoría válida.';
+      return;
+    }
+
+    const duplicada = this.categorias.some(
+      (categoria) =>
+        categoria.nombre.toLowerCase() === nombre.toLowerCase() &&
+        categoria.id !== this.categoriaEditandoId
+    );
+    if (duplicada) {
+      this.categoriaError = 'La categoría ya existe.';
+      return;
+    }
+
+    const categoria = this.categoriaEditando;
+    const request$ = categoria
+      ? this.categoriasService.actualizar(categoria.id, { nombre, estado: categoria.estado })
+      : this.categoriasService.crear({ nombre });
+
+    request$.subscribe({
+      next: () => {
+        this.categoriaMensaje = categoria
+          ? 'Categoría actualizada correctamente.'
+          : 'Categoría creada correctamente.';
+        this.reiniciarEditorCategoria();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.categoriaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  cambiarEstadoCategoria(categoria: CategoriaResponse): void {
+    if (categoria.estado === 'ACTIVO' && this.categoriasActivas.length === 1) {
+      this.categoriaError = 'Debe existir al menos una categoría activa.';
+      return;
+    }
+
+    const request$: Observable<unknown> =
+      categoria.estado === 'ACTIVO'
+        ? this.categoriasService.inactivar(categoria.id)
+        : this.categoriasService.actualizar(categoria.id, {
+            nombre: categoria.nombre,
+            estado: 'ACTIVO',
+          });
+
+    request$.subscribe({
+      next: () => {
+        this.categoriaMensaje =
+          categoria.estado === 'ACTIVO'
+            ? 'Categoría desactivada correctamente.'
+            : 'Categoría activada correctamente.';
+        this.reiniciarEditorCategoria();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.categoriaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  categoriaEnUso(categoria: CategoriaResponse): boolean {
+    return this.productos.some((producto) => producto.categoriaId === categoria.id);
+  }
+
+  actualizarTextoCategoria(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.categoriaTexto = sanitized;
+    this.categoriaError = '';
+    this.categoriaMensaje = '';
+  }
+
+  reiniciarEditorCategoria(): void {
+    this.categoriaTexto = '';
+    this.categoriaEditandoId = null;
+    this.categoriaError = '';
+  }
+
+  iniciarEdicionMarca(marca: MarcaResponse): void {
+    this.marcaEditandoId = marca.id;
+    this.marcaTexto = marca.nombre;
+    this.marcaError = '';
+    this.marcaMensaje = '';
+  }
+
+  guardarMarca(): void {
+    this.marcaError = '';
+    const nombre = this.normalizarNombreCatalogo(this.marcaTexto);
+
+    if (!nombre) {
+      this.marcaError = 'Ingrese una marca válida.';
+      return;
+    }
+
+    const duplicada = this.marcas.some(
+      (marca) =>
+        marca.nombre.toLowerCase() === nombre.toLowerCase() &&
+        marca.id !== this.marcaEditandoId
+    );
+    if (duplicada) {
+      this.marcaError = 'La marca ya existe.';
+      return;
+    }
+
+    const marca = this.marcaEditando;
+    const request$ = marca
+      ? this.marcasService.actualizar(marca.id, { nombre, estado: marca.estado })
+      : this.marcasService.crear({ nombre });
+
+    request$.subscribe({
+      next: () => {
+        this.marcaMensaje = marca
+          ? 'Marca actualizada correctamente.'
+          : 'Marca creada correctamente.';
+        this.reiniciarEditorMarca();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.marcaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  cambiarEstadoMarca(marca: MarcaResponse): void {
+    if (marca.estado === 'ACTIVO' && this.marcasActivas.length === 1) {
+      this.marcaError = 'Debe existir al menos una marca activa.';
+      return;
+    }
+
+    const request$: Observable<unknown> =
+      marca.estado === 'ACTIVO'
+        ? this.marcasService.inactivar(marca.id)
+        : this.marcasService.actualizar(marca.id, {
+            nombre: marca.nombre,
+            estado: 'ACTIVO',
+          });
+
+    request$.subscribe({
+      next: () => {
+        this.marcaMensaje =
+          marca.estado === 'ACTIVO'
+            ? 'Marca desactivada correctamente.'
+            : 'Marca activada correctamente.';
+        this.reiniciarEditorMarca();
+        this.cargarDatos();
+      },
+      error: (error: unknown) => {
+        this.marcaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  marcaEnUso(marca: MarcaResponse): boolean {
+    return this.productos.some((producto) => producto.marcaId === marca.id);
+  }
+
+  actualizarTextoMarca(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]/g, '').replace(/\s{2,}/g, ' ');
+    if (sanitized !== input.value) input.value = sanitized;
+    this.marcaTexto = sanitized;
+    this.marcaError = '';
+    this.marcaMensaje = '';
+  }
+
+  reiniciarEditorMarca(): void {
+    this.marcaTexto = '';
+    this.marcaEditandoId = null;
+    this.marcaError = '';
+  }
+
+  estadoClase(estado: EstadoCatalogo | EstadoProducto): string {
+    return estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
+  }
+
+  private asegurarCatalogosSeleccionados(): void {
+    if (!this.productoForm.controls.categoriaId.value && this.categoriasActivas[0]) {
+      this.productoForm.patchValue({ categoriaId: this.categoriasActivas[0].id });
+    }
+    if (!this.productoForm.controls.marcaId.value && this.marcasActivas[0]) {
+      this.productoForm.patchValue({ marcaId: this.marcasActivas[0].id });
+    }
+  }
+
+  private normalizarTexto(value: string): string {
+    return value.trim().replace(/\s+/g, ' ');
+  }
+
+  private normalizarSku(value: string): string {
+    return value.trim().replace(/\s+/g, '-').toUpperCase();
+  }
+
+  private normalizarOpcional(value: string): string | null {
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private normalizarNombreCatalogo(value: string): string {
+    const normalized = value.trim().replace(/\s+/g, ' ');
+    if (!normalized) return '';
+    if (normalized.length < 2 || normalized.length > 80) return '';
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]+$/.test(normalized)) return '';
+    return normalized;
+  }
+}
