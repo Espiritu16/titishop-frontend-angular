@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
+import { FiltroTodos } from '../../core/listado-utils';
 import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
 import { UsuariosService } from './usuarios.service';
 
@@ -15,6 +15,7 @@ import { UsuariosService } from './usuarios.service';
   styleUrl: './usuarios.scss',
 })
 export class Usuarios {
+  readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   estadoListado: EstadoCarga = 'inicial';
@@ -33,6 +34,9 @@ export class Usuarios {
   };
   readonly usuarioForm;
   private readonly namePattern = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalRegistros = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -51,21 +55,27 @@ export class Usuarios {
     return this.usuarioForm.valid && !this.enviando;
   }
 
-  get usuariosFiltrados(): UsuarioResponse[] {
-    return ordenarPorCreacionDesc(this.usuarios).filter(
-      (usuario) =>
-        buscarEnCampos(usuario, this.filtrosUsuario.busqueda, ['nombreCompleto', 'email', 'rol']) &&
-        coincideFiltro(usuario.rol, this.filtrosUsuario.rol) &&
-        coincideFiltro(usuario.estado, this.filtrosUsuario.estado)
-    );
+  get hayFiltrosActivos(): boolean {
+    return Boolean(this.filtrosUsuario.busqueda.trim())
+      || this.filtrosUsuario.rol !== 'TODOS'
+      || this.filtrosUsuario.estado !== 'TODOS';
   }
 
   cargarUsuarios(): void {
     this.estadoListado = 'cargando';
     this.errorListado = '';
-    this.usuariosService.listar().subscribe({
-      next: (usuarios) => {
-        this.usuarios = usuarios;
+    this.usuariosService.listar({
+      page: this.paginaActual,
+      size: this.pageSize,
+      busqueda: this.filtrosUsuario.busqueda,
+      rol: this.filtrosUsuario.rol,
+      estado: this.filtrosUsuario.estado,
+    }).subscribe({
+      next: (pagina) => {
+        this.usuarios = pagina.content;
+        this.paginaActual = pagina.page;
+        this.totalPaginas = pagina.totalPages;
+        this.totalRegistros = pagina.totalElements;
         this.estadoListado = 'exito';
       },
       error: (error: unknown) => {
@@ -81,6 +91,17 @@ export class Usuarios {
       rol: 'TODOS',
       estado: 'TODOS',
     };
+    this.irAPagina(0);
+  }
+
+  onFiltrosChange(): void {
+    this.irAPagina(0);
+  }
+
+  irAPagina(page: number): void {
+    if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
+    this.paginaActual = page;
+    this.cargarUsuarios();
   }
 
   guardarUsuario(): void {
