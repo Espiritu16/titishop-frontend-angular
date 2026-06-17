@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
+import { FiltroTodos } from '../../core/listado-utils';
 import { EstadoProveedor, ProveedorResponse } from '../../core/models';
 import { ProveedoresService } from './proveedores.service';
 
@@ -17,6 +17,7 @@ type ToastType = 'success' | 'error';
   styleUrl: './proveedores.scss',
 })
 export class Proveedores {
+  readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   errorRuc = '';
@@ -36,6 +37,9 @@ export class Proveedores {
 
   readonly proveedorForm;
   readonly estadosProveedor: Array<FiltroTodos<EstadoProveedor>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalRegistros = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -52,26 +56,20 @@ export class Proveedores {
     this.cargarProveedores();
   }
 
-  get proveedoresFiltrados(): ProveedorResponse[] {
-    return ordenarPorCreacionDesc(this.proveedores).filter(
-      (proveedor) =>
-        buscarEnCampos(proveedor, this.filtrosProveedor.busqueda, [
-          'razonSocial',
-          'ruc',
-          'celular',
-          'telefono',
-          'email',
-          'direccion',
-        ]) && coincideFiltro(proveedor.estado, this.filtrosProveedor.estado)
-    );
-  }
-
   cargarProveedores(): void {
     this.estadoListado = 'cargando';
     this.errorListado = '';
-    this.proveedoresService.listar().subscribe({
-      next: (proveedores) => {
-        this.proveedores = proveedores;
+    this.proveedoresService.listar({
+      page: this.paginaActual,
+      size: this.pageSize,
+      busqueda: this.filtrosProveedor.busqueda,
+      estado: this.filtrosProveedor.estado,
+    }).subscribe({
+      next: (pagina) => {
+        this.proveedores = pagina.content;
+        this.paginaActual = pagina.page;
+        this.totalPaginas = pagina.totalPages;
+        this.totalRegistros = pagina.totalElements;
         this.estadoListado = 'exito';
       },
       error: (error: unknown) => {
@@ -132,6 +130,17 @@ export class Proveedores {
       busqueda: '',
       estado: 'TODOS',
     };
+    this.irAPagina(0);
+  }
+
+  onFiltrosChange(): void {
+    this.irAPagina(0);
+  }
+
+  irAPagina(page: number): void {
+    if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
+    this.paginaActual = page;
+    this.cargarProveedores();
   }
 
   guardarProveedor(): void {
