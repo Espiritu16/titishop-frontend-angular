@@ -5,14 +5,26 @@ import {
   ActualizarCategoriaRequest,
   CategoriaResponse,
   CrearCategoriaRequest,
+  EstadoCatalogo,
+  PaginaResponse,
 } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class CategoriasService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<CategoriaResponse[]> {
-    return this.api.get<CategoriaResponse[]>('/categorias');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    estado?: EstadoCatalogo | 'TODOS';
+  }): Observable<PaginaResponse<CategoriaResponse>> {
+    return this.api.get<PaginaResponse<CategoriaResponse>>('/categorias', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
   }
 
   crear(request: CrearCategoriaRequest): Observable<CategoriaResponse> {

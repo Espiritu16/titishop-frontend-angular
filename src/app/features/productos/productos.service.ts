@@ -1,14 +1,28 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { ActualizarProductoRequest, ArchivoResponse, CrearProductoRequest, ProductoResponse } from '../../core/models';
+import { ActualizarProductoRequest, ArchivoResponse, CrearProductoRequest, EstadoProducto, PaginaResponse, ProductoResponse } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductosService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<ProductoResponse[]> {
-    return this.api.get<ProductoResponse[]>('/productos');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    estado?: EstadoProducto | 'TODOS';
+    categoriaId?: string;
+    marcaId?: string;
+  }): Observable<PaginaResponse<ProductoResponse>> {
+    return this.api.get<PaginaResponse<ProductoResponse>>('/productos', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+      categoriaId: params?.categoriaId === 'TODOS' ? undefined : params?.categoriaId,
+      marcaId: params?.marcaId === 'TODOS' ? undefined : params?.marcaId,
+    });
   }
 
   crear(request: CrearProductoRequest): Observable<ProductoResponse> {
