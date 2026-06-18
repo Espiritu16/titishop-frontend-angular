@@ -5,6 +5,8 @@ import {
   ActualizarProveedorRequest,
   ConsultaRucProveedorResponse,
   CrearProveedorRequest,
+  EstadoProveedor,
+  PaginaResponse,
   ProveedorResponse,
 } from '../../core/models';
 
@@ -12,8 +14,18 @@ import {
 export class ProveedoresService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<ProveedorResponse[]> {
-    return this.api.get<ProveedorResponse[]>('/proveedores');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    estado?: EstadoProveedor | 'TODOS';
+  }): Observable<PaginaResponse<ProveedorResponse>> {
+    return this.api.get<PaginaResponse<ProveedorResponse>>('/proveedores', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
   }
 
   consultarRuc(ruc: string): Observable<ConsultaRucProveedorResponse> {

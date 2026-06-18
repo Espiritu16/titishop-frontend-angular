@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
+import { FiltroTodos } from '../../core/listado-utils';
 import { MovimientoResponse, ProductoResponse, ProveedorResponse, TipoMovimiento } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { ProveedoresService } from '../proveedores/proveedores.service';
@@ -19,6 +19,7 @@ import { MovimientosService } from './movimientos.service';
   styleUrl: './movimientos.scss',
 })
 export class Movimientos {
+  readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   estadoListado: EstadoCarga = 'inicial';
@@ -38,6 +39,9 @@ export class Movimientos {
   readonly tiposMovimientoFiltro: Array<FiltroTodos<TipoMovimiento>> = ['TODOS', ...this.tiposMovimiento];
   readonly estadosMovimientoFiltro: Array<FiltroTodos<'VIGENTE' | 'ANULADO'>> = ['TODOS', 'VIGENTE', 'ANULADO'];
   readonly movimientoForm;
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalRegistros = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -69,21 +73,6 @@ export class Movimientos {
     return this.proveedores.filter((proveedor) => proveedor.estado === 'ACTIVO');
   }
 
-  get movimientosFiltrados(): MovimientoResponse[] {
-    return ordenarPorCreacionDesc(this.movimientos).filter(
-      (movimiento) =>
-        buscarEnCampos(movimiento, this.filtrosMovimiento.busqueda, [
-          'productoNombre',
-          'productoSku',
-          'proveedorRazonSocial',
-          'motivo',
-          'creadoPorNombre',
-        ]) &&
-        coincideFiltro(movimiento.tipo, this.filtrosMovimiento.tipo) &&
-        coincideFiltro(this.estadoMovimiento(movimiento), this.filtrosMovimiento.estado)
-    );
-  }
-
   get puedeGuardar(): boolean {
     const value = this.movimientoForm.getRawValue();
     const requiereProveedor = value.tipo === 'ENTRADA';
@@ -100,14 +89,26 @@ export class Movimientos {
     this.estadoListado = 'cargando';
     this.errorListado = '';
     forkJoin({
-      movimientos: this.movimientosService.listar(),
-      productos: this.productosService.listar(),
-      proveedores: this.proveedoresService.listar(),
+      movimientos: this.movimientosService.listar({
+        page: this.paginaActual,
+        size: this.pageSize,
+        busqueda: this.filtrosMovimiento.busqueda,
+        tipo: this.filtrosMovimiento.tipo,
+        anulado:
+          this.filtrosMovimiento.estado === 'TODOS'
+            ? undefined
+            : this.filtrosMovimiento.estado === 'ANULADO',
+      }),
+      productos: this.productosService.listar({ page: 0, size: 200 }),
+      proveedores: this.proveedoresService.listar({ page: 0, size: 200 }),
     }).subscribe({
       next: ({ movimientos, productos, proveedores }) => {
-        this.movimientos = movimientos;
-        this.productos = productos;
-        this.proveedores = proveedores;
+        this.movimientos = movimientos.content;
+        this.paginaActual = movimientos.page;
+        this.totalPaginas = movimientos.totalPages;
+        this.totalRegistros = movimientos.totalElements;
+        this.productos = productos.content;
+        this.proveedores = proveedores.content;
         this.estadoListado = 'exito';
       },
       error: (error: unknown) => {
@@ -132,6 +133,17 @@ export class Movimientos {
       tipo: 'TODOS',
       estado: 'TODOS',
     };
+    this.irAPagina(0);
+  }
+
+  onFiltrosChange(): void {
+    this.irAPagina(0);
+  }
+
+  irAPagina(page: number): void {
+    if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
+    this.paginaActual = page;
+    this.cargarDatos();
   }
 
   registrarMovimiento(): void {

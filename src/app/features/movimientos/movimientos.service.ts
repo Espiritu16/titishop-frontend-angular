@@ -4,15 +4,29 @@ import { ApiClientService } from '../../core/http/api-client.service';
 import {
   AnularMovimientoRequest,
   MovimientoResponse,
+  PaginaResponse,
   RegistrarMovimientoRequest,
+  TipoMovimiento,
 } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class MovimientosService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<MovimientoResponse[]> {
-    return this.api.get<MovimientoResponse[]>('/movimientos');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    tipo?: TipoMovimiento | 'TODOS';
+    anulado?: boolean;
+  }): Observable<PaginaResponse<MovimientoResponse>> {
+    return this.api.get<PaginaResponse<MovimientoResponse>>('/movimientos', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      tipo: params?.tipo === 'TODOS' ? undefined : params?.tipo,
+      anulado: params?.anulado,
+    });
   }
 
   registrar(request: RegistrarMovimientoRequest): Observable<MovimientoResponse> {

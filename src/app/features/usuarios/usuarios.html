@@ -28,7 +28,7 @@
     <div class="bg-red-50 border border-red-100 text-red-700 rounded-xl p-4 text-sm">
       {{ errorListado }}
     </div>
-  } @else if (!usuarios.length) {
+  } @else if (!usuarios.length && !hayFiltrosActivos) {
     <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
       No hay usuarios registrados.
     </div>
@@ -37,11 +37,11 @@
     <label class="relative block">
       <span class="sr-only">Buscar usuarios</span>
       <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-      <input type="search" [(ngModel)]="filtrosUsuario.busqueda" name="busquedaUsuarios" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, correo o rol">
+      <input type="search" [(ngModel)]="filtrosUsuario.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaUsuarios" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, correo o rol">
     </label>
     <label>
       <span class="sr-only">Filtrar usuarios por rol</span>
-      <select [(ngModel)]="filtrosUsuario.rol" name="rolUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+      <select [(ngModel)]="filtrosUsuario.rol" (ngModelChange)="onFiltrosChange()" name="rolUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
         @for (rol of rolesFiltro; track rol) {
           <option [value]="rol">{{ rol === 'TODOS' ? 'Todos los roles' : rol }}</option>
         }
@@ -49,7 +49,7 @@
     </label>
     <label>
       <span class="sr-only">Filtrar usuarios por estado</span>
-      <select [(ngModel)]="filtrosUsuario.estado" name="estadoUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+      <select [(ngModel)]="filtrosUsuario.estado" (ngModelChange)="onFiltrosChange()" name="estadoUsuarios" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
         @for (estado of estadosUsuario; track estado) {
           <option [value]="estado">{{ estado === 'TODOS' ? 'Todos los estados' : estado }}</option>
         }
@@ -58,7 +58,7 @@
     <button type="button" (click)="limpiarFiltrosUsuarios()" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Limpiar</button>
   </div>
   <div class="block min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 xl:hidden">
-    @for (u of usuariosFiltrados; track u.id) {
+    @for (u of usuarios; track u.id) {
       <article class="bg-white rounded-xl border border-gray-200 p-4">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
@@ -80,7 +80,7 @@
       </article>
     } @empty {
       <div class="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-        No hay usuarios para los filtros seleccionados.
+          No hay usuarios para mostrar en esta consulta.
       </div>
     }
   </div>
@@ -99,7 +99,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (u of usuariosFiltrados; track u.id) {
+          @for (u of usuarios; track u.id) {
             <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2.5">
@@ -126,11 +126,18 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">No hay usuarios para los filtros seleccionados.</td>
+              <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">No hay usuarios para mostrar en esta consulta.</td>
             </tr>
           }
         </tbody>
       </table>
+    </div>
+  </div>
+  <div class="mt-3 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+    <p>{{ totalRegistros }} registros encontrados. Pagina {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
+    <div class="flex gap-2">
+      <button type="button" (click)="irAPagina(paginaActual - 1)" [disabled]="paginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+      <button type="button" (click)="irAPagina(paginaActual + 1)" [disabled]="paginaActual + 1 >= totalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
     </div>
   </div>
   }

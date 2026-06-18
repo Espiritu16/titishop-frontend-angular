@@ -2,6 +2,7 @@ export type RolUsuario = 'ADMINISTRADOR' | 'ALMACENERO' | 'SUPERVISOR';
 export type EstadoCatalogo = 'ACTIVO' | 'INACTIVO';
 export type TipoMovimiento = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
 export type EstadoInventario = 'ACTIVO' | 'INACTIVO';
+export type EstadoStockInventario = 'NORMAL' | 'BAJO' | 'AGOTADO';
 export type EstadoProveedor = 'ACTIVO' | 'INACTIVO';
 export type EstadoProducto = 'ACTIVO' | 'INACTIVO';
 
@@ -40,6 +41,23 @@ export interface ApiErrorResponse {
   message: string;
   path: string;
   details: string[];
+}
+
+export interface PaginaResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
+export interface PaginacionQuery {
+  page?: number;
+  size?: number;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 export interface CategoriaResponse {

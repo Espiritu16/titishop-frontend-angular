@@ -4,15 +4,30 @@ import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarInventarioRequest,
   CrearInventarioRequest,
+  EstadoInventario,
+  EstadoStockInventario,
   InventarioResponse,
+  PaginaResponse,
 } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class InventarioService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<InventarioResponse[]> {
-    return this.api.get<InventarioResponse[]>('/inventario');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    estado?: EstadoInventario | 'TODOS';
+    stockEstado?: EstadoStockInventario | 'TODOS';
+  }): Observable<PaginaResponse<InventarioResponse>> {
+    return this.api.get<PaginaResponse<InventarioResponse>>('/inventario', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+      stockEstado: params?.stockEstado === 'TODOS' ? undefined : params?.stockEstado,
+    });
   }
 
   crear(request: CrearInventarioRequest): Observable<InventarioResponse> {
