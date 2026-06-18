@@ -174,12 +174,57 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
-            <select formControlName="productoId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
-              <option value="">Seleccionar...</option>
-              @for (producto of productosActivos; track producto.id) {
-                <option [value]="producto.id">{{ producto.nombre }} - {{ producto.sku }}</option>
+            <div class="producto-selector" (focusout)="onProductoSelectorFocusOut($event)">
+              <div class="producto-selector__control" [class.producto-selector__control--open]="dropdownProductoAbierto">
+                <i class="bi bi-search producto-selector__icon"></i>
+                <input
+                  type="text"
+                  [value]="busquedaProducto"
+                  (focus)="abrirDropdownProducto()"
+                  (input)="onBusquedaProductoChange($any($event.target).value)"
+                  class="producto-selector__input"
+                  placeholder="Buscar por nombre o SKU"
+                  aria-label="Buscar producto"
+                  autocomplete="off">
+                @if (movimientoForm.controls.productoId.value) {
+                  <button
+                    type="button"
+                    (click)="limpiarProductoSeleccionado()"
+                    class="producto-selector__clear"
+                    aria-label="Limpiar producto seleccionado">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                }
+                <button
+                  type="button"
+                  (click)="dropdownProductoAbierto = !dropdownProductoAbierto"
+                  class="producto-selector__toggle"
+                  aria-label="Mostrar opciones de producto">
+                  <i class="bi" [class.bi-chevron-down]="!dropdownProductoAbierto" [class.bi-chevron-up]="dropdownProductoAbierto"></i>
+                </button>
+              </div>
+
+              @if (dropdownProductoAbierto) {
+                <div class="producto-selector__menu">
+                  @for (producto of productosFiltradosSelector; track producto.id) {
+                    <button
+                      type="button"
+                      (click)="seleccionarProducto(producto)"
+                      class="producto-selector__option"
+                      [class.producto-selector__option--selected]="productoSeleccionadoEs(producto.id)">
+                      <span class="producto-selector__name">{{ producto.nombre }}</span>
+                      <span class="producto-selector__sku">{{ producto.sku }}</span>
+                    </button>
+                  } @empty {
+                    <div class="producto-selector__empty">No se encontraron productos.</div>
+                  }
+                </div>
               }
-            </select>
+
+              @if (movimientoForm.controls.productoId.touched && !movimientoForm.controls.productoId.value) {
+                <p class="mt-1 text-xs text-red-500">Selecciona un producto para continuar.</p>
+              }
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Cantidad *</label>
