@@ -4,7 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
+import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import {
   CategoriaResponse,
   ArchivoResponse,
@@ -25,6 +25,7 @@ import { ProductosService } from './productos.service';
   styleUrl: './productos.scss',
 })
 export class Productos {
+  readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   estadoListado: EstadoCarga = 'inicial';
@@ -34,15 +35,23 @@ export class Productos {
   mostrarModalMarcas = false;
   productos: ProductoResponse[] = [];
   categorias: CategoriaResponse[] = [];
+  categoriasModal: CategoriaResponse[] = [];
   marcas: MarcaResponse[] = [];
+  marcasModal: MarcaResponse[] = [];
   categoriaError = '';
   categoriaMensaje = '';
   categoriaTexto = '';
   categoriaEditandoId: string | null = null;
+  categoriaPaginaActual = 0;
+  categoriaTotalPaginas = 0;
+  categoriaTotalRegistros = 0;
   marcaError = '';
   marcaMensaje = '';
   marcaTexto = '';
   marcaEditandoId: string | null = null;
+  marcaPaginaActual = 0;
+  marcaTotalPaginas = 0;
+  marcaTotalRegistros = 0;
   enviando = false;
   imagenProductoSeleccionada: File | null = null;
   imagenProductoNombre = '';
@@ -57,6 +66,9 @@ export class Productos {
 
   readonly productoForm;
   readonly estadosProducto: Array<FiltroTodos<EstadoProducto>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalRegistros = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -83,22 +95,6 @@ export class Productos {
 
   get marcasActivas(): MarcaResponse[] {
     return this.marcas.filter((marca) => marca.estado === 'ACTIVO');
-  }
-
-  get productosFiltrados(): ProductoResponse[] {
-    return ordenarPorCreacionDesc(this.productos).filter(
-      (producto) =>
-        buscarEnCampos(producto, this.filtrosProducto.busqueda, [
-          'nombre',
-          'sku',
-          'categoriaNombre',
-          'marcaNombre',
-        ]) &&
-        coincideFiltro(producto.estado, this.filtrosProducto.estado) &&
-        (this.filtrosProducto.categoriaId === 'TODOS' ||
-          producto.categoriaId === this.filtrosProducto.categoriaId) &&
-        (this.filtrosProducto.marcaId === 'TODOS' || producto.marcaId === this.filtrosProducto.marcaId)
-    );
   }
 
   get opcionesCategoriaProducto(): CategoriaResponse[] {
@@ -138,6 +134,7 @@ export class Productos {
       categoriaId: 'TODOS',
       marcaId: 'TODOS',
     };
+    this.irAPagina(0);
   }
 
   abrirModalProducto(): void {
@@ -149,12 +146,16 @@ export class Productos {
     this.mostrarModalCategorias = true;
     this.categoriaMensaje = '';
     this.reiniciarEditorCategoria();
+    this.categoriaPaginaActual = 0;
+    this.cargarCategoriasModal();
   }
 
   abrirModalMarcas(): void {
     this.mostrarModalMarcas = true;
     this.marcaMensaje = '';
     this.reiniciarEditorMarca();
+    this.marcaPaginaActual = 0;
+    this.cargarMarcasModal();
   }
 
   cerrarModalCategorias(): void {
@@ -173,14 +174,36 @@ export class Productos {
     this.estadoListado = 'cargando';
     this.errorListado = '';
     forkJoin({
-      productos: this.productosService.listar(),
-      categorias: this.categoriasService.listar(),
-      marcas: this.marcasService.listar(),
+      productos: this.productosService.listar({
+        page: this.paginaActual,
+        size: this.pageSize,
+        busqueda: this.filtrosProducto.busqueda,
+        estado: this.filtrosProducto.estado,
+        categoriaId: this.filtrosProducto.categoriaId,
+        marcaId: this.filtrosProducto.marcaId,
+      }),
+      categorias: listarTodasLasPaginas((page, size) => this.categoriasService.listar({ page, size })),
+      marcas: listarTodasLasPaginas((page, size) => this.marcasService.listar({ page, size })),
     }).subscribe({
       next: ({ productos, categorias, marcas }) => {
-        this.productos = productos;
+        this.productos = productos.content;
+        this.paginaActual = productos.page;
+        this.totalPaginas = productos.totalPages;
+        this.totalRegistros = productos.totalElements;
         this.categorias = categorias;
         this.marcas = marcas;
+        if (!this.mostrarModalCategorias) {
+          this.categoriasModal = categorias.slice(0, this.pageSize);
+          this.categoriaPaginaActual = 0;
+          this.categoriaTotalRegistros = categorias.length;
+          this.categoriaTotalPaginas = Math.ceil(categorias.length / this.pageSize);
+        }
+        if (!this.mostrarModalMarcas) {
+          this.marcasModal = marcas.slice(0, this.pageSize);
+          this.marcaPaginaActual = 0;
+          this.marcaTotalRegistros = marcas.length;
+          this.marcaTotalPaginas = Math.ceil(marcas.length / this.pageSize);
+        }
         this.estadoListado = 'exito';
         this.asegurarCatalogosSeleccionados();
       },
@@ -189,6 +212,16 @@ export class Productos {
         this.errorListado = getApiErrorMessage(error);
       },
     });
+  }
+
+  onFiltrosChange(): void {
+    this.irAPagina(0);
+  }
+
+  irAPagina(page: number): void {
+    if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
+    this.paginaActual = page;
+    this.cargarDatos();
   }
 
   guardarProducto(): void {
@@ -379,7 +412,7 @@ export class Productos {
       return;
     }
 
-    const categoria = this.categoriaEditando;
+    const categoria = this.categorias.find((item) => item.id === this.categoriaEditandoId) ?? null;
     const request$ = categoria
       ? this.categoriasService.actualizar(categoria.id, { nombre, estado: categoria.estado })
       : this.categoriasService.crear({ nombre });
@@ -391,6 +424,7 @@ export class Productos {
           : 'Categoría creada correctamente.';
         this.reiniciarEditorCategoria();
         this.cargarDatos();
+        this.cargarCategoriasModal();
       },
       error: (error: unknown) => {
         this.categoriaError = getApiErrorMessage(error);
@@ -420,6 +454,7 @@ export class Productos {
             : 'Categoría activada correctamente.';
         this.reiniciarEditorCategoria();
         this.cargarDatos();
+        this.cargarCategoriasModal();
       },
       error: (error: unknown) => {
         this.categoriaError = getApiErrorMessage(error);
@@ -472,7 +507,7 @@ export class Productos {
       return;
     }
 
-    const marca = this.marcaEditando;
+    const marca = this.marcas.find((item) => item.id === this.marcaEditandoId) ?? null;
     const request$ = marca
       ? this.marcasService.actualizar(marca.id, { nombre, estado: marca.estado })
       : this.marcasService.crear({ nombre });
@@ -484,6 +519,7 @@ export class Productos {
           : 'Marca creada correctamente.';
         this.reiniciarEditorMarca();
         this.cargarDatos();
+        this.cargarMarcasModal();
       },
       error: (error: unknown) => {
         this.marcaError = getApiErrorMessage(error);
@@ -513,6 +549,7 @@ export class Productos {
             : 'Marca activada correctamente.';
         this.reiniciarEditorMarca();
         this.cargarDatos();
+        this.cargarMarcasModal();
       },
       error: (error: unknown) => {
         this.marcaError = getApiErrorMessage(error);
@@ -539,6 +576,18 @@ export class Productos {
     this.marcaError = '';
   }
 
+  irAPaginaCategorias(page: number): void {
+    if (page < 0 || (this.categoriaTotalPaginas > 0 && page >= this.categoriaTotalPaginas)) return;
+    this.categoriaPaginaActual = page;
+    this.cargarCategoriasModal();
+  }
+
+  irAPaginaMarcas(page: number): void {
+    if (page < 0 || (this.marcaTotalPaginas > 0 && page >= this.marcaTotalPaginas)) return;
+    this.marcaPaginaActual = page;
+    this.cargarMarcasModal();
+  }
+
   estadoClase(estado: EstadoCatalogo | EstadoProducto): string {
     return estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
   }
@@ -550,6 +599,36 @@ export class Productos {
     if (!this.productoForm.controls.marcaId.value && this.marcasActivas[0]) {
       this.productoForm.patchValue({ marcaId: this.marcasActivas[0].id });
     }
+  }
+
+  private cargarCategoriasModal(): void {
+    if (!this.mostrarModalCategorias) return;
+    this.categoriasService.listar({ page: this.categoriaPaginaActual, size: this.pageSize }).subscribe({
+      next: (pagina) => {
+        this.categoriasModal = pagina.content;
+        this.categoriaPaginaActual = pagina.page;
+        this.categoriaTotalPaginas = pagina.totalPages;
+        this.categoriaTotalRegistros = pagina.totalElements;
+      },
+      error: (error: unknown) => {
+        this.categoriaError = getApiErrorMessage(error);
+      },
+    });
+  }
+
+  private cargarMarcasModal(): void {
+    if (!this.mostrarModalMarcas) return;
+    this.marcasService.listar({ page: this.marcaPaginaActual, size: this.pageSize }).subscribe({
+      next: (pagina) => {
+        this.marcasModal = pagina.content;
+        this.marcaPaginaActual = pagina.page;
+        this.marcaTotalPaginas = pagina.totalPages;
+        this.marcaTotalRegistros = pagina.totalElements;
+      },
+      error: (error: unknown) => {
+        this.marcaError = getApiErrorMessage(error);
+      },
+    });
   }
 
   private normalizarTexto(value: string): string {

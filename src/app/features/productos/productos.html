@@ -43,11 +43,11 @@
         <label class="relative block">
           <span class="sr-only">Buscar productos</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-          <input type="search" [(ngModel)]="filtrosProducto.busqueda" name="busquedaProductos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, SKU, categoría o marca">
+          <input type="search" [(ngModel)]="filtrosProducto.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaProductos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, SKU, categoría o marca">
         </label>
         <label>
           <span class="sr-only">Filtrar productos por estado</span>
-          <select [(ngModel)]="filtrosProducto.estado" name="estadoProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+          <select [(ngModel)]="filtrosProducto.estado" (ngModelChange)="onFiltrosChange()" name="estadoProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
             @for (estado of estadosProducto; track estado) {
               <option [value]="estado">{{ estado === 'TODOS' ? 'Todos los estados' : estado }}</option>
             }
@@ -55,7 +55,7 @@
         </label>
         <label>
           <span class="sr-only">Filtrar productos por categoría</span>
-          <select [(ngModel)]="filtrosProducto.categoriaId" name="categoriaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+          <select [(ngModel)]="filtrosProducto.categoriaId" (ngModelChange)="onFiltrosChange()" name="categoriaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
             <option value="TODOS">Todas las categorías</option>
             @for (categoria of categorias; track categoria.id) {
               <option [value]="categoria.id">{{ categoria.nombre }}</option>
@@ -64,7 +64,7 @@
         </label>
         <label>
           <span class="sr-only">Filtrar productos por marca</span>
-          <select [(ngModel)]="filtrosProducto.marcaId" name="marcaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+          <select [(ngModel)]="filtrosProducto.marcaId" (ngModelChange)="onFiltrosChange()" name="marcaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
             <option value="TODOS">Todas las marcas</option>
             @for (marca of marcas; track marca.id) {
               <option [value]="marca.id">{{ marca.nombre }}</option>
@@ -75,7 +75,7 @@
       </div>
       <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
         <div class="space-y-3 xl:hidden">
-          @for (producto of productosFiltrados; track producto.id) {
+          @for (producto of productos; track producto.id) {
             <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
               <div class="mb-3 flex items-start justify-between gap-3">
                 <div class="min-w-0">
@@ -115,7 +115,7 @@
               </div>
             </article>
           } @empty {
-            <div class="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">No hay productos para los filtros seleccionados.</div>
+            <div class="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">No hay productos para mostrar en esta consulta.</div>
           }
         </div>
 
@@ -134,7 +134,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (producto of productosFiltrados; track producto.id) {
+            @for (producto of productos; track producto.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
                 <td class="px-4 py-3 font-medium text-gray-800">{{ producto.nombre }}</td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ producto.sku }}</td>
@@ -157,11 +157,18 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-400">No hay productos para los filtros seleccionados.</td>
+                <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-400">No hay productos para mostrar en esta consulta.</td>
               </tr>
             }
           </tbody>
         </table>
+      </div>
+      <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+        <p>{{ totalRegistros }} registros encontrados. Pagina {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
+        <div class="flex gap-2">
+          <button type="button" (click)="irAPagina(paginaActual - 1)" [disabled]="paginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+          <button type="button" (click)="irAPagina(paginaActual + 1)" [disabled]="paginaActual + 1 >= totalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+        </div>
       </div>
     </div>
   }
@@ -300,7 +307,7 @@
             Marcas creadas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
-            @for (marca of marcas; track marca.id) {
+            @for (marca of marcasModal; track marca.id) {
               <div class="flex items-center justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
@@ -309,7 +316,7 @@
                       {{ marca.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionMarca(marca)" aria-label="Editar marca" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
@@ -323,6 +330,13 @@
             } @empty {
               <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas creadas.</p>
             }
+          </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ marcaTotalRegistros }} registros encontrados. Pagina {{ marcaTotalPaginas === 0 ? 0 : marcaPaginaActual + 1 }} de {{ marcaTotalPaginas }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual - 1)" [disabled]="marcaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual + 1)" [disabled]="marcaPaginaActual + 1 >= marcaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
           </div>
         </div>
       </div>
@@ -375,7 +389,7 @@
             Categorías creadas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
-            @for (categoria of categorias; track categoria.id) {
+            @for (categoria of categoriasModal; track categoria.id) {
               <div class="flex items-center justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
@@ -384,7 +398,7 @@
                       {{ categoria.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionCategoria(categoria)" aria-label="Editar categoría" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
@@ -398,6 +412,13 @@
             } @empty {
               <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías creadas.</p>
             }
+          </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ categoriaTotalRegistros }} registros encontrados. Pagina {{ categoriaTotalPaginas === 0 ? 0 : categoriaPaginaActual + 1 }} de {{ categoriaTotalPaginas }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual - 1)" [disabled]="categoriaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual + 1)" [disabled]="categoriaPaginaActual + 1 >= categoriaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
           </div>
         </div>
       </div>

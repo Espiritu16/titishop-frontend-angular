@@ -4,12 +4,10 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { forkJoin, Observable } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from '../../core/listado-utils';
-import { EstadoInventario, InventarioResponse, ProductoResponse } from '../../core/models';
+import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
+import { EstadoInventario, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { InventarioService } from './inventario.service';
-
-type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO';
 
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
@@ -19,6 +17,7 @@ type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO';
   styleUrl: './inventario.scss',
 })
 export class Inventario {
+  readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   estadoListado: EstadoCarga = 'inicial';
@@ -30,12 +29,15 @@ export class Inventario {
   filtrosInventario = {
     busqueda: '',
     estado: 'TODOS' as FiltroTodos<EstadoInventario>,
-    stock: 'TODOS' as FiltroTodos<EstadoStock>,
+    stock: 'TODOS' as FiltroTodos<EstadoStockInventario>,
   };
 
   readonly inventarioForm;
   readonly estadosInventario: Array<FiltroTodos<EstadoInventario>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
-  readonly estadosStock: Array<FiltroTodos<EstadoStock>> = ['TODOS', 'NORMAL', 'BAJO', 'AGOTADO'];
+  readonly estadosStock: Array<FiltroTodos<EstadoStockInventario>> = ['TODOS', 'NORMAL', 'BAJO', 'AGOTADO'];
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalRegistros = 0;
 
   constructor(
     private fb: FormBuilder,
@@ -60,24 +62,24 @@ export class Inventario {
     );
   }
 
-  get inventariosFiltrados(): InventarioResponse[] {
-    return ordenarPorCreacionDesc(this.inventarios).filter(
-      (item) =>
-        buscarEnCampos(item, this.filtrosInventario.busqueda, ['productoNombre', 'productoSku', 'ubicacion']) &&
-        coincideFiltro(item.estado, this.filtrosInventario.estado) &&
-        coincideFiltro(this.estadoStock(item), this.filtrosInventario.stock)
-    );
-  }
-
   cargarDatos(): void {
     this.estadoListado = 'cargando';
     this.errorListado = '';
     forkJoin({
-      inventarios: this.inventarioService.listar(),
-      productos: this.productosService.listar(),
+      inventarios: this.inventarioService.listar({
+        page: this.paginaActual,
+        size: this.pageSize,
+        busqueda: this.filtrosInventario.busqueda,
+        estado: this.filtrosInventario.estado,
+        stockEstado: this.filtrosInventario.stock,
+      }),
+      productos: listarTodasLasPaginas((page, size) => this.productosService.listar({ page, size })),
     }).subscribe({
       next: ({ inventarios, productos }) => {
-        this.inventarios = inventarios;
+        this.inventarios = inventarios.content;
+        this.paginaActual = inventarios.page;
+        this.totalPaginas = inventarios.totalPages;
+        this.totalRegistros = inventarios.totalElements;
         this.productos = productos;
         this.estadoListado = 'exito';
       },
@@ -103,6 +105,17 @@ export class Inventario {
       estado: 'TODOS',
       stock: 'TODOS',
     };
+    this.irAPagina(0);
+  }
+
+  onFiltrosChange(): void {
+    this.irAPagina(0);
+  }
+
+  irAPagina(page: number): void {
+    if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
+    this.paginaActual = page;
+    this.cargarDatos();
   }
 
   guardarInventario(): void {
@@ -195,7 +208,7 @@ export class Inventario {
     });
   }
 
-  estadoStock(item: InventarioResponse): EstadoStock {
+  estadoStock(item: InventarioResponse): EstadoStockInventario {
     if (item.stockActual <= 0) return 'AGOTADO';
     if (item.stockActual <= item.stockMinimo) return 'BAJO';
     return 'NORMAL';

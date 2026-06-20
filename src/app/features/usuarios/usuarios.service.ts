@@ -4,6 +4,9 @@ import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarUsuarioRequest,
   CrearUsuarioRequest,
+  EstadoCatalogo,
+  PaginaResponse,
+  RolUsuario,
   UsuarioResponse,
 } from '../../core/models';
 
@@ -11,8 +14,20 @@ import {
 export class UsuariosService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<UsuarioResponse[]> {
-    return this.api.get<UsuarioResponse[]>('/usuarios');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    rol?: RolUsuario | 'TODOS';
+    estado?: EstadoCatalogo | 'TODOS';
+  }): Observable<PaginaResponse<UsuarioResponse>> {
+    return this.api.get<PaginaResponse<UsuarioResponse>>('/usuarios', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      rol: params?.rol === 'TODOS' ? undefined : params?.rol,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
   }
 
   crear(request: CrearUsuarioRequest): Observable<UsuarioResponse> {

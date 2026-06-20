@@ -1,14 +1,24 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { ActualizarMarcaRequest, CrearMarcaRequest, MarcaResponse } from '../../core/models';
+import { ActualizarMarcaRequest, CrearMarcaRequest, EstadoCatalogo, MarcaResponse, PaginaResponse } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class MarcasService {
   constructor(private api: ApiClientService) {}
 
-  listar(): Observable<MarcaResponse[]> {
-    return this.api.get<MarcaResponse[]>('/marcas');
+  listar(params?: {
+    page?: number;
+    size?: number;
+    busqueda?: string;
+    estado?: EstadoCatalogo | 'TODOS';
+  }): Observable<PaginaResponse<MarcaResponse>> {
+    return this.api.get<PaginaResponse<MarcaResponse>>('/marcas', {
+      page: params?.page,
+      size: params?.size,
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
   }
 
   crear(request: CrearMarcaRequest): Observable<MarcaResponse> {
