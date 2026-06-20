@@ -106,7 +106,7 @@
               <th class="px-4 py-3 text-left font-medium">Registro</th>
               <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Ubicación</th>
               <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Actualizado</th>
-              <th class="px-4 py-3 text-left font-medium">Acc.</th>
+              <th class="px-4 py-3 text-left font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -140,7 +140,7 @@
         </table>
       </div>
       <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>{{ totalRegistros }} registros encontrados. Pagina {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
+        <p>{{ totalRegistros }} registros encontrados. Página {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
         <div class="flex gap-2">
           <button type="button" (click)="irAPagina(paginaActual - 1)" [disabled]="paginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
           <button type="button" (click)="irAPagina(paginaActual + 1)" [disabled]="paginaActual + 1 >= totalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>

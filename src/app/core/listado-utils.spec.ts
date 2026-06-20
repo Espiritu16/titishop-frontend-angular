@@ -34,7 +34,7 @@ describe('utilidades de listado', () => {
     expect(coincideFiltro('INACTIVO', 'ACTIVO')).toBe(false);
   });
 
-  it('carga todas las paginas usando el tamano maximo permitido por el backend', async () => {
+  it('carga todas las páginas usando el tamaño máximo permitido por el backend', async () => {
     const llamadas: Array<{ page: number; size: number }> = [];
     const paginas: PaginaResponse<string>[] = [
       pagina(['categoria-1', 'categoria-2'], 0, 2, false),

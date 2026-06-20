@@ -24,7 +24,7 @@
       <button type="button" (click)="abrirModalProducto()" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
         <i class="bi bi-plus-lg"></i>
         <span class="hidden sm:inline">Nuevo producto</span>
-        <span class="sm:hidden">Nuevo</span>
+        <span class="sm:hidden">Nuevo producto</span>
       </button>
     </div>
   </div>
@@ -130,7 +130,7 @@
               <th class="px-4 py-3 text-left font-medium">P. Venta</th>
               <th class="px-4 py-3 text-left font-medium">Estado</th>
               <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">Fecha</th>
-              <th class="px-4 py-3 text-left font-medium">Acc.</th>
+              <th class="px-4 py-3 text-left font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +164,7 @@
         </table>
       </div>
       <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>{{ totalRegistros }} registros encontrados. Pagina {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
+        <p>{{ totalRegistros }} registros encontrados. Página {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
         <div class="flex gap-2">
           <button type="button" (click)="irAPagina(paginaActual - 1)" [disabled]="paginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
           <button type="button" (click)="irAPagina(paginaActual + 1)" [disabled]="paginaActual + 1 >= totalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
@@ -195,7 +195,7 @@
             <input type="text" formControlName="sku" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:border-indigo-400" placeholder="TITI-XXX-00">
           </div>
 	          <div>
-	            <label class="block text-sm font-medium text-gray-600 mb-1">Imagen URL</label>
+	            <label class="block text-sm font-medium text-gray-600 mb-1">URL de la imagen</label>
 	            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
 	          </div>
 	          <div class="sm:col-span-2">
@@ -219,7 +219,7 @@
 	            @if (imagenProductoError) {
 	              <p class="mt-1 text-xs text-red-600">{{ imagenProductoError }}</p>
 	            }
-	            <p class="mt-1 text-xs text-gray-500">JPG, PNG, WEBP o GIF. Maximo 5 MB. Si seleccionas archivo, reemplaza la URL al guardar.</p>
+	            <p class="mt-1 text-xs text-gray-500">JPG, PNG, WEBP o GIF. Máximo 5 MB. Si seleccionas un archivo, reemplazará la URL al guardar.</p>
 	          </div>
 	          <div>
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
@@ -238,11 +238,11 @@
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Precio compra *</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Precio de compra *</label>
             <input type="number" formControlName="precioCompra" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Precio venta *</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Precio de venta *</label>
             <input type="number" formControlName="precioVenta" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
           </div>
           <div class="sm:col-span-2">
@@ -304,7 +304,7 @@
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
           <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Marcas creadas
+            Marcas registradas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
             @for (marca of marcasModal; track marca.id) {
@@ -328,11 +328,11 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas creadas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas registradas.</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>{{ marcaTotalRegistros }} registros encontrados. Pagina {{ marcaTotalPaginas === 0 ? 0 : marcaPaginaActual + 1 }} de {{ marcaTotalPaginas }}.</p>
+            <p>{{ marcaTotalRegistros }} registros encontrados. Página {{ marcaTotalPaginas === 0 ? 0 : marcaPaginaActual + 1 }} de {{ marcaTotalPaginas }}.</p>
             <div class="flex gap-2">
               <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual - 1)" [disabled]="marcaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
               <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual + 1)" [disabled]="marcaPaginaActual + 1 >= marcaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
@@ -386,7 +386,7 @@
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
           <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Categorías creadas
+            Categorías registradas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
             @for (categoria of categoriasModal; track categoria.id) {
@@ -410,11 +410,11 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías creadas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías registradas.</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>{{ categoriaTotalRegistros }} registros encontrados. Pagina {{ categoriaTotalPaginas === 0 ? 0 : categoriaPaginaActual + 1 }} de {{ categoriaTotalPaginas }}.</p>
+            <p>{{ categoriaTotalRegistros }} registros encontrados. Página {{ categoriaTotalPaginas === 0 ? 0 : categoriaPaginaActual + 1 }} de {{ categoriaTotalPaginas }}.</p>
             <div class="flex gap-2">
               <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual - 1)" [disabled]="categoriaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
               <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual + 1)" [disabled]="categoriaPaginaActual + 1 >= categoriaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
