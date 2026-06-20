@@ -4,7 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos } from '../../core/listado-utils';
+import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import {
   CategoriaResponse,
   ArchivoResponse,
@@ -182,27 +182,27 @@ export class Productos {
         categoriaId: this.filtrosProducto.categoriaId,
         marcaId: this.filtrosProducto.marcaId,
       }),
-      categorias: this.categoriasService.listar({ page: 0, size: 200 }),
-      marcas: this.marcasService.listar({ page: 0, size: 200 }),
+      categorias: listarTodasLasPaginas((page, size) => this.categoriasService.listar({ page, size })),
+      marcas: listarTodasLasPaginas((page, size) => this.marcasService.listar({ page, size })),
     }).subscribe({
       next: ({ productos, categorias, marcas }) => {
         this.productos = productos.content;
         this.paginaActual = productos.page;
         this.totalPaginas = productos.totalPages;
         this.totalRegistros = productos.totalElements;
-        this.categorias = categorias.content;
-        this.marcas = marcas.content;
+        this.categorias = categorias;
+        this.marcas = marcas;
         if (!this.mostrarModalCategorias) {
-          this.categoriasModal = categorias.content.slice(0, this.pageSize);
+          this.categoriasModal = categorias.slice(0, this.pageSize);
           this.categoriaPaginaActual = 0;
-          this.categoriaTotalRegistros = categorias.totalElements;
-          this.categoriaTotalPaginas = categorias.totalPages;
+          this.categoriaTotalRegistros = categorias.length;
+          this.categoriaTotalPaginas = Math.ceil(categorias.length / this.pageSize);
         }
         if (!this.mostrarModalMarcas) {
-          this.marcasModal = marcas.content.slice(0, this.pageSize);
+          this.marcasModal = marcas.slice(0, this.pageSize);
           this.marcaPaginaActual = 0;
-          this.marcaTotalRegistros = marcas.totalElements;
-          this.marcaTotalPaginas = marcas.totalPages;
+          this.marcaTotalRegistros = marcas.length;
+          this.marcaTotalPaginas = Math.ceil(marcas.length / this.pageSize);
         }
         this.estadoListado = 'exito';
         this.asegurarCatalogosSeleccionados();

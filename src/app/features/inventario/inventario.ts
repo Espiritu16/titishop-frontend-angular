@@ -4,7 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { forkJoin, Observable } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos } from '../../core/listado-utils';
+import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { EstadoInventario, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { InventarioService } from './inventario.service';
@@ -73,14 +73,14 @@ export class Inventario {
         estado: this.filtrosInventario.estado,
         stockEstado: this.filtrosInventario.stock,
       }),
-      productos: this.productosService.listar({ page: 0, size: 200 }),
+      productos: listarTodasLasPaginas((page, size) => this.productosService.listar({ page, size })),
     }).subscribe({
       next: ({ inventarios, productos }) => {
         this.inventarios = inventarios.content;
         this.paginaActual = inventarios.page;
         this.totalPaginas = inventarios.totalPages;
         this.totalRegistros = inventarios.totalElements;
-        this.productos = productos.content;
+        this.productos = productos;
         this.estadoListado = 'exito';
       },
       error: (error: unknown) => {

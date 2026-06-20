@@ -66,7 +66,7 @@
           <span class="sr-only">Filtrar productos por marca</span>
           <select [(ngModel)]="filtrosProducto.marcaId" (ngModelChange)="onFiltrosChange()" name="marcaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
             <option value="TODOS">Todas las marcas</option>
-            @for (marca of marcasModal; track marca.id) {
+            @for (marca of marcas; track marca.id) {
               <option [value]="marca.id">{{ marca.nombre }}</option>
             }
           </select>
@@ -307,7 +307,7 @@
             Marcas creadas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
-            @for (marca of marcas; track marca.id) {
+            @for (marca of marcasModal; track marca.id) {
               <div class="flex items-center justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
@@ -316,7 +316,7 @@
                       {{ marca.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionMarca(marca)" aria-label="Editar marca" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
@@ -398,7 +398,7 @@
                       {{ categoria.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'En uso por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionCategoria(categoria)" aria-label="Editar categoría" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
