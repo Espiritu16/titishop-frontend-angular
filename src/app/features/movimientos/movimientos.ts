@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos } from '../../core/listado-utils';
+import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { MovimientoResponse, ProductoResponse, ProveedorResponse, TipoMovimiento } from '../../core/models';
 import { ProductosService } from '../productos/productos.service';
 import { ProveedoresService } from '../proveedores/proveedores.service';
@@ -116,16 +116,16 @@ export class Movimientos {
             ? undefined
             : this.filtrosMovimiento.estado === 'ANULADO',
       }),
-      productos: this.productosService.listar({ page: 0, size: 200 }),
-      proveedores: this.proveedoresService.listar({ page: 0, size: 200 }),
+      productos: listarTodasLasPaginas((page, size) => this.productosService.listar({ page, size })),
+      proveedores: listarTodasLasPaginas((page, size) => this.proveedoresService.listar({ page, size })),
     }).subscribe({
       next: ({ movimientos, productos, proveedores }) => {
         this.movimientos = movimientos.content;
         this.paginaActual = movimientos.page;
         this.totalPaginas = movimientos.totalPages;
         this.totalRegistros = movimientos.totalElements;
-        this.productos = productos.content;
-        this.proveedores = proveedores.content;
+        this.productos = productos;
+        this.proveedores = proveedores;
         this.estadoListado = 'exito';
       },
       error: (error: unknown) => {

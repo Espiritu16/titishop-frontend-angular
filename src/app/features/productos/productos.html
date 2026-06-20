@@ -66,7 +66,7 @@
           <span class="sr-only">Filtrar productos por marca</span>
           <select [(ngModel)]="filtrosProducto.marcaId" (ngModelChange)="onFiltrosChange()" name="marcaProductos" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
             <option value="TODOS">Todas las marcas</option>
-            @for (marca of marcasModal; track marca.id) {
+            @for (marca of marcas; track marca.id) {
               <option [value]="marca.id">{{ marca.nombre }}</option>
             }
           </select>
@@ -164,7 +164,7 @@
         </table>
       </div>
       <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>{{ totalRegistros }} registros encontrados. Pagina {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
+        <p>{{ totalRegistros }} registros encontrados. Página {{ totalPaginas === 0 ? 0 : paginaActual + 1 }} de {{ totalPaginas }}.</p>
         <div class="flex gap-2">
           <button type="button" (click)="irAPagina(paginaActual - 1)" [disabled]="paginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
           <button type="button" (click)="irAPagina(paginaActual + 1)" [disabled]="paginaActual + 1 >= totalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
@@ -307,7 +307,7 @@
             Marcas registradas
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
-            @for (marca of marcas; track marca.id) {
+            @for (marca of marcasModal; track marca.id) {
               <div class="flex items-center justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
@@ -316,7 +316,7 @@
                       {{ marca.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'Usada por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ marcaEnUso(marca) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionMarca(marca)" aria-label="Editar marca" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
@@ -328,11 +328,11 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas creadas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas registradas.</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>{{ marcaTotalRegistros }} registros encontrados. Pagina {{ marcaTotalPaginas === 0 ? 0 : marcaPaginaActual + 1 }} de {{ marcaTotalPaginas }}.</p>
+            <p>{{ marcaTotalRegistros }} registros encontrados. Página {{ marcaTotalPaginas === 0 ? 0 : marcaPaginaActual + 1 }} de {{ marcaTotalPaginas }}.</p>
             <div class="flex gap-2">
               <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual - 1)" [disabled]="marcaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
               <button type="button" (click)="irAPaginaMarcas(marcaPaginaActual + 1)" [disabled]="marcaPaginaActual + 1 >= marcaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
@@ -398,7 +398,7 @@
                       {{ categoria.estado }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'Usada por productos' : 'Sin productos asociados' }}</p>
+                  <p class="text-xs text-gray-400">{{ categoriaEnUso(categoria) ? 'Usada en esta página' : 'Sin uso en esta página' }}</p>
                 </div>
                 <div class="flex gap-1.5 shrink-0">
                   <button type="button" (click)="iniciarEdicionCategoria(categoria)" aria-label="Editar categoría" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
@@ -410,11 +410,11 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías creadas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías registradas.</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>{{ categoriaTotalRegistros }} registros encontrados. Pagina {{ categoriaTotalPaginas === 0 ? 0 : categoriaPaginaActual + 1 }} de {{ categoriaTotalPaginas }}.</p>
+            <p>{{ categoriaTotalRegistros }} registros encontrados. Página {{ categoriaTotalPaginas === 0 ? 0 : categoriaPaginaActual + 1 }} de {{ categoriaTotalPaginas }}.</p>
             <div class="flex gap-2">
               <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual - 1)" [disabled]="categoriaPaginaActual === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
               <button type="button" (click)="irAPaginaCategorias(categoriaPaginaActual + 1)" [disabled]="categoriaPaginaActual + 1 >= categoriaTotalPaginas" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>

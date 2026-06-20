@@ -1,8 +1,23 @@
+import { EMPTY, Observable, expand, map, reduce } from 'rxjs';
+import { PaginaResponse } from './models';
+
 type FechaCreacion = {
   creadoEn?: string;
 };
 
 export type FiltroTodos<T extends string> = T | 'TODOS';
+export const TAMANO_MAXIMO_PAGINA = 100;
+
+export function listarTodasLasPaginas<T>(
+  cargarPagina: (page: number, size: number) => Observable<PaginaResponse<T>>,
+  size = TAMANO_MAXIMO_PAGINA
+): Observable<T[]> {
+  return cargarPagina(0, size).pipe(
+    expand((pagina) => (pagina.last ? EMPTY : cargarPagina(pagina.page + 1, size))),
+    map((pagina) => pagina.content),
+    reduce<T[], T[]>((acumulado, content) => [...acumulado, ...content], [])
+  );
+}
 
 export function ordenarPorCreacionDesc<T extends FechaCreacion>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => fechaEnMs(b.creadoEn) - fechaEnMs(a.creadoEn));
