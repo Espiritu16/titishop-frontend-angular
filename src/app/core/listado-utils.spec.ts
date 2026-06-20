@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buscarEnCampos, coincideFiltro, ordenarPorCreacionDesc } from './listado-utils';
+import { of } from 'rxjs';
+import { PaginaResponse } from './models';
+import { buscarEnCampos, coincideFiltro, listarTodasLasPaginas, ordenarPorCreacionDesc } from './listado-utils';
 
 describe('utilidades de listado', () => {
   it('ordena primero los registros creados mas recientemente', () => {
@@ -31,4 +33,38 @@ describe('utilidades de listado', () => {
     expect(coincideFiltro('ACTIVO', 'ACTIVO')).toBe(true);
     expect(coincideFiltro('INACTIVO', 'ACTIVO')).toBe(false);
   });
+
+  it('carga todas las páginas usando el tamaño máximo permitido por el backend', async () => {
+    const llamadas: Array<{ page: number; size: number }> = [];
+    const paginas: PaginaResponse<string>[] = [
+      pagina(['categoria-1', 'categoria-2'], 0, 2, false),
+      pagina(['categoria-3'], 1, 2, true),
+    ];
+
+    const resultado = await new Promise<string[]>((resolve, reject) => {
+      listarTodasLasPaginas((page, size) => {
+        llamadas.push({ page, size });
+        return of(paginas[page]);
+      }).subscribe({ next: resolve, error: reject });
+    });
+
+    expect(resultado).toEqual(['categoria-1', 'categoria-2', 'categoria-3']);
+    expect(llamadas).toEqual([
+      { page: 0, size: 100 },
+      { page: 1, size: 100 },
+    ]);
+  });
 });
+
+function pagina<T>(content: T[], page: number, totalPages: number, last: boolean): PaginaResponse<T> {
+  return {
+    content,
+    page,
+    size: 100,
+    totalElements: content.length,
+    totalPages,
+    first: page === 0,
+    last,
+    empty: content.length === 0,
+  };
+}
