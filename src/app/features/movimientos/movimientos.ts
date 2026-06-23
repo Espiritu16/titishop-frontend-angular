@@ -25,6 +25,9 @@ export class Movimientos {
   estadoListado: EstadoCarga = 'inicial';
   enviando = false;
   mostrarModal = false;
+  busquedaProducto = '';
+  dropdownProductoAbierto = false;
+  productoSeleccionado: ProductoResponse | null = null;
 
   movimientos: MovimientoResponse[] = [];
   productos: ProductoResponse[] = [];
@@ -71,6 +74,16 @@ export class Movimientos {
 
   get proveedoresActivos(): ProveedorResponse[] {
     return this.proveedores.filter((proveedor) => proveedor.estado === 'ACTIVO');
+  }
+
+  get productosFiltradosSelector(): ProductoResponse[] {
+    const texto = this.normalizarBusqueda(this.busquedaProducto);
+    if (!texto) return this.productosActivos;
+
+    return this.productosActivos.filter((producto) => {
+      const contenido = this.normalizarBusqueda(`${producto.nombre} ${producto.sku}`);
+      return contenido.includes(texto);
+    });
   }
 
   get puedeGuardar(): boolean {
@@ -121,6 +134,7 @@ export class Movimientos {
   abrirModal(): void {
     this.mostrarModal = true;
     this.mensaje = '';
+    this.sincronizarSelectorProducto();
   }
 
   bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
@@ -222,6 +236,57 @@ export class Movimientos {
       motivo: '',
     });
     this.configurarTipoMovimiento('ENTRADA');
+    this.resetearSelectorProducto();
+  }
+
+  abrirDropdownProducto(): void {
+    this.dropdownProductoAbierto = true;
+    if (!this.busquedaProducto && this.productoSeleccionado) {
+      this.busquedaProducto = this.textoProducto(this.productoSeleccionado);
+    }
+  }
+
+  onBusquedaProductoChange(valor: string): void {
+    this.busquedaProducto = valor;
+    this.dropdownProductoAbierto = true;
+
+    if (this.productoSeleccionado && valor !== this.textoProducto(this.productoSeleccionado)) {
+      this.productoSeleccionado = null;
+      this.movimientoForm.controls.productoId.setValue('');
+    }
+  }
+
+  seleccionarProducto(producto: ProductoResponse): void {
+    this.productoSeleccionado = producto;
+    this.busquedaProducto = this.textoProducto(producto);
+    this.movimientoForm.controls.productoId.setValue(producto.id);
+    this.movimientoForm.controls.productoId.markAsDirty();
+    this.dropdownProductoAbierto = false;
+  }
+
+  limpiarProductoSeleccionado(): void {
+    this.resetearSelectorProducto();
+    this.movimientoForm.controls.productoId.markAsTouched();
+  }
+
+  onProductoSelectorFocusOut(event: FocusEvent): void {
+    const siguiente = event.relatedTarget;
+    if (siguiente instanceof Node && event.currentTarget instanceof Node && event.currentTarget.contains(siguiente)) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (!this.productoSeleccionado) {
+        this.busquedaProducto = '';
+      } else {
+        this.busquedaProducto = this.textoProducto(this.productoSeleccionado);
+      }
+      this.dropdownProductoAbierto = false;
+    });
+  }
+
+  productoSeleccionadoEs(productoId: string): boolean {
+    return this.productoSeleccionado?.id === productoId;
   }
 
   movimientoClase(type: TipoMovimiento): string {
@@ -256,5 +321,26 @@ export class Movimientos {
 
   private usuarioSesionId(): string | null {
     return this.auth.session()?.id ?? null;
+  }
+
+  private resetearSelectorProducto(): void {
+    this.busquedaProducto = '';
+    this.dropdownProductoAbierto = false;
+    this.productoSeleccionado = null;
+  }
+
+  private sincronizarSelectorProducto(): void {
+    const productoId = this.movimientoForm.controls.productoId.value;
+    this.productoSeleccionado = this.productosActivos.find((producto) => producto.id === productoId) ?? null;
+    this.busquedaProducto = this.productoSeleccionado ? this.textoProducto(this.productoSeleccionado) : '';
+    this.dropdownProductoAbierto = false;
+  }
+
+  private textoProducto(producto: ProductoResponse): string {
+    return `${producto.nombre} - ${producto.sku}`;
+  }
+
+  private normalizarBusqueda(value: string): string {
+    return value.trim().toLowerCase();
   }
 }
