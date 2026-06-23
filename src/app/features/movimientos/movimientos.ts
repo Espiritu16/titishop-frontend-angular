@@ -86,10 +86,6 @@ export class Movimientos {
     });
   }
 
-  get mostrarSinResultadosProducto(): boolean {
-    return this.dropdownProductoAbierto && !!this.busquedaProducto.trim() && this.productosFiltradosSelector.length === 0;
-  }
-
   get puedeGuardar(): boolean {
     const value = this.movimientoForm.getRawValue();
     const requiereProveedor = value.tipo === 'ENTRADA';
