@@ -1,9 +1,10 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { EstadoCarga } from '../../core/estado-carga';
+import { AccionDebounced, crearAccionDebounced, paginarLocal } from '../../core/listado-utils';
 import {
   EstadoInventario,
   ReporteMovimientosResponse,
@@ -23,7 +24,8 @@ type PestanaReporte = 'movimientos' | 'stock' | 'critico' | 'valorizacion';
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
 })
-export class Reportes {
+export class Reportes implements OnDestroy {
+  readonly pageSize = 10;
   pestanaActiva: PestanaReporte = 'movimientos';
   estado: EstadoCarga = 'inicial';
   error = '';
@@ -35,9 +37,15 @@ export class Reportes {
   stock: ReporteStockResponse[] = [];
   stockCritico: ReporteStockCriticoResponse[] = [];
   valorizacion: ReporteValorizacionResponse | null = null;
+  paginaMovimientos = 0;
+  paginaStock = 0;
+  paginaCritico = 0;
+  paginaValorizacion = 0;
 
   readonly filtrosMovimientos;
   readonly filtrosStock;
+  private suspendiendoFiltros = false;
+  private readonly busquedaStockDebounced: AccionDebounced = crearAccionDebounced(() => this.aplicarFiltrosStock());
 
   constructor(
     private fb: FormBuilder,
@@ -52,6 +60,15 @@ export class Reportes {
     this.filtrosStock = this.fb.nonNullable.group({
       estado: ['TODOS' as EstadoInventario | 'TODOS'],
       busqueda: [''],
+    });
+    this.filtrosMovimientos.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.aplicarFiltrosMovimientos();
+    });
+    this.filtrosStock.controls.estado.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.aplicarFiltrosStock();
+    });
+    this.filtrosStock.controls.busqueda.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.busquedaStockDebounced.schedule();
     });
     this.cargarReportes();
   }
@@ -74,6 +91,35 @@ export class Reportes {
       .reduce((total, movimiento) => total + movimiento.cantidad, 0);
   }
 
+  get movimientosPaginados(): ReporteMovimientosResponse[] {
+    return paginarLocal(this.movimientos, this.paginaMovimientos, this.pageSize);
+  }
+
+  get stockPaginado(): ReporteStockResponse[] {
+    return paginarLocal(this.stock, this.paginaStock, this.pageSize);
+  }
+
+  get stockCriticoPaginado(): ReporteStockCriticoResponse[] {
+    return paginarLocal(this.stockCritico, this.paginaCritico, this.pageSize);
+  }
+
+  get valorizacionItems(): NonNullable<ReporteValorizacionResponse['items']> {
+    return this.valorizacion?.items ?? [];
+  }
+
+  get valorizacionPaginada(): NonNullable<ReporteValorizacionResponse['items']> {
+    return paginarLocal(this.valorizacionItems, this.paginaValorizacion, this.pageSize);
+  }
+
+  totalPaginas(total: number): number {
+    return Math.ceil(total / this.pageSize);
+  }
+
+  textoPagina(page: number, total: number): string {
+    const totalPaginas = this.totalPaginas(total);
+    return `Página ${totalPaginas === 0 ? 0 : page + 1} de ${totalPaginas}`;
+  }
+
   cargarReportes(): void {
     this.estado = 'cargando';
     this.error = '';
@@ -89,6 +135,7 @@ export class Reportes {
         this.stock = stock;
         this.stockCritico = stockCritico;
         this.valorizacion = valorizacion;
+        this.resetearPaginas();
         this.estado = 'exito';
       },
       error: (error: unknown) => {
@@ -100,6 +147,7 @@ export class Reportes {
 
   aplicarFiltrosMovimientos(): void {
     this.estado = 'cargando';
+    this.paginaMovimientos = 0;
     this.reportesService.movimientos(this.filtrosMovimientoRequest()).subscribe({
       next: (movimientos) => {
         this.movimientos = movimientos;
@@ -114,6 +162,7 @@ export class Reportes {
 
   aplicarFiltrosStock(): void {
     this.estado = 'cargando';
+    this.paginaStock = 0;
     this.reportesService.stock(this.filtrosStockRequest()).subscribe({
       next: (stock) => {
         this.stock = stock;
@@ -127,21 +176,29 @@ export class Reportes {
   }
 
   limpiarFiltrosMovimientos(): void {
+    this.suspendiendoFiltros = true;
     this.filtrosMovimientos.reset({
       fechaInicio: '',
       fechaFin: '',
       tipo: 'TODOS',
       incluirAnulados: false,
     });
+    this.suspendiendoFiltros = false;
     this.aplicarFiltrosMovimientos();
   }
 
   limpiarFiltrosStock(): void {
+    this.suspendiendoFiltros = true;
     this.filtrosStock.reset({
       estado: 'TODOS',
       busqueda: '',
     });
+    this.suspendiendoFiltros = false;
     this.aplicarFiltrosStock();
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaStockDebounced.destroy();
   }
 
   movimientoClase(tipo: TipoMovimiento): string {
@@ -152,6 +209,22 @@ export class Reportes {
 
   stockClase(item: ReporteStockResponse): string {
     return item.stockCritico ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+  }
+
+  irAPaginaMovimientos(page: number): void {
+    if (this.paginaValida(page, this.movimientos.length)) this.paginaMovimientos = page;
+  }
+
+  irAPaginaStock(page: number): void {
+    if (this.paginaValida(page, this.stock.length)) this.paginaStock = page;
+  }
+
+  irAPaginaCritico(page: number): void {
+    if (this.paginaValida(page, this.stockCritico.length)) this.paginaCritico = page;
+  }
+
+  irAPaginaValorizacion(page: number): void {
+    if (this.paginaValida(page, this.valorizacionItems.length)) this.paginaValorizacion = page;
   }
 
   private filtrosMovimientoRequest() {
@@ -170,5 +243,16 @@ export class Reportes {
       estado: filtros.estado === 'TODOS' ? null : filtros.estado,
       busqueda: filtros.busqueda.trim() || null,
     };
+  }
+
+  private paginaValida(page: number, total: number): boolean {
+    return page >= 0 && page < this.totalPaginas(total);
+  }
+
+  private resetearPaginas(): void {
+    this.paginaMovimientos = 0;
+    this.paginaStock = 0;
+    this.paginaCritico = 0;
+    this.paginaValorizacion = 0;
   }
 }

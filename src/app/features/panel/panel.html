@@ -5,96 +5,188 @@
     <span class="text-gray-700 font-medium">Panel</span>
   </div>
   <div class="lg:hidden text-sm font-semibold text-gray-800">Panel</div>
+  <button type="button" (click)="cargarPanel()" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50">
+    <i class="bi bi-arrow-clockwise"></i>
+    <span class="hidden sm:inline">Actualizar</span>
+  </button>
 </header>
 
 <main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
-  <div class="mb-5">
-    <h1 class="text-xl font-bold text-gray-800">Panel</h1>
-    <p class="text-sm text-gray-400 mt-0.5">Resumen general del sistema</p>
+  <div class="mb-5 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-gray-800">Panel operativo</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Estado general de inventario, movimientos y abastecimiento</p>
+    </div>
+    @if (estado === 'exito') {
+      <div class="inline-flex w-fit items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
+        <span class="h-2.5 w-2.5 rounded-full" [class.bg-amber-400]="(resumen?.productosStockCritico ?? 0) > 0" [class.bg-emerald-400]="(resumen?.productosStockCritico ?? 0) === 0"></span>
+        <span class="font-semibold">{{ estadoOperativo }}</span>
+      </div>
+    }
   </div>
 
   @if (estado === 'cargando') {
-    <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando panel...</div>
-  } @else if (estado === 'error') {
-    <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ error }}</div>
-  } @else {
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      @for (kpi of kpis; track kpi.label) {
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <p class="text-2xl font-bold text-gray-800 leading-none">{{ kpi.value }}</p>
-          <p class="text-sm text-gray-600 font-medium mt-1 leading-tight">{{ kpi.label }}</p>
-          <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">{{ kpi.meta }}</p>
-        </div>
-      }
+    <div class="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-400">
+      <i class="bi bi-arrow-repeat animate-spin text-xl text-indigo-500"></i>
+      <p class="mt-2">Cargando panel...</p>
     </div>
+  } @else if (estado === 'error') {
+    <div class="rounded-xl border border-red-100 bg-white px-4 py-10 text-center text-sm text-red-500">
+      <p>{{ error }}</p>
+      <button type="button" (click)="cargarPanel()" class="mt-4 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Reintentar</button>
+    </div>
+  } @else {
+    <section class="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      @for (kpi of kpis; track kpi.label) {
+        <article class="rounded-xl border border-gray-200 bg-white p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div class="grid h-10 w-10 place-items-center rounded-lg {{ kpiToneClasses(kpi.tone) }}">
+              <i class="bi {{ kpi.icon }}"></i>
+            </div>
+            <span class="text-xs font-medium text-gray-400">{{ kpi.meta }}</span>
+          </div>
+          <p class="text-2xl font-bold leading-none text-gray-800">{{ kpi.value }}</p>
+          <p class="mt-1 text-sm font-semibold text-gray-600">{{ kpi.label }}</p>
+        </article>
+      }
+    </section>
 
-    <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
-      <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="bi bi-exclamation-triangle text-amber-400"></i>
-          Alertas de inventario
-          @if ((resumen?.productosStockCritico ?? 0) > 0) {
-            <span class="ml-auto bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{{ resumen?.productosStockCritico }}</span>
-          }
-        </h2>
-        <p class="text-sm text-gray-500 py-4">
-          {{ (resumen?.productosStockCritico ?? 0) > 0 ? 'Hay productos en stock crítico.' : 'Sin alertas' }}
-        </p>
+    <section class="mt-4 grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <div class="flex min-h-0 flex-col gap-4">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <article class="rounded-xl border border-gray-200 bg-white p-4 lg:col-span-2">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-base font-semibold text-gray-800">Actividad del mes</h2>
+                <p class="text-sm text-gray-400">Entradas, salidas y balance neto</p>
+              </div>
+              <span class="rounded-full px-2 py-0.5 text-xs font-semibold" [class.bg-green-100]="balanceMensual >= 0" [class.text-green-700]="balanceMensual >= 0" [class.bg-red-100]="balanceMensual < 0" [class.text-red-700]="balanceMensual < 0">
+                Balance {{ balanceMensual >= 0 ? '+' : '' }}{{ balanceMensual }}
+              </span>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div class="rounded-lg border border-gray-100 px-3 py-3">
+                <p class="text-xs font-medium text-gray-400">Entradas</p>
+                <p class="mt-1 text-xl font-bold text-green-700">+{{ resumen?.entradasDelMes ?? 0 }}</p>
+              </div>
+              <div class="rounded-lg border border-gray-100 px-3 py-3">
+                <p class="text-xs font-medium text-gray-400">Salidas</p>
+                <p class="mt-1 text-xl font-bold text-blue-700">-{{ resumen?.salidasDelMes ?? 0 }}</p>
+              </div>
+              <div class="rounded-lg border border-gray-100 px-3 py-3">
+                <p class="text-xs font-medium text-gray-400">Rotación salida/entrada</p>
+                <p class="mt-1 text-xl font-bold text-gray-800">{{ porcentajeSalidaMensual }}%</p>
+              </div>
+            </div>
+            <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-100">
+              <div class="h-full rounded-full bg-indigo-500 transition-all" [style.width.%]="porcentajeSalidaMensual"></div>
+            </div>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 bg-white p-4">
+            <h2 class="text-base font-semibold text-gray-800">Valor inventario</h2>
+            <p class="mt-1 text-sm text-gray-400">Estimación a precio de venta</p>
+            <p class="mt-5 text-3xl font-bold text-gray-800">{{ resumen?.valorEstimadoInventario ?? 0 | currency:'PEN':'symbol-narrow':'1.2-2' }}</p>
+            <p class="mt-2 text-xs text-gray-400">Basado en stock actual disponible.</p>
+          </article>
+        </div>
+
+        <div class="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white">
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+            <div>
+              <h2 class="text-base font-semibold text-gray-800">Últimos movimientos</h2>
+              <p class="text-sm text-gray-400">Registros recientes del inventario</p>
+            </div>
+            <a routerLink="/movimientos" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Ver todos</a>
+          </div>
+          <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
+            <div class="space-y-3 sm:hidden">
+              @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
+                <article class="rounded-xl border border-gray-100 bg-white p-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-gray-800">{{ movimiento.productoNombre }}</p>
+                      <p class="mt-0.5 font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
+                  </div>
+                  <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
+                    <span class="truncate text-gray-500">{{ movimiento.creadoPorNombre }}</span>
+                    <span class="font-semibold text-gray-800">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</span>
+                  </div>
+                </article>
+              } @empty {
+                <div class="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-400">No hay movimientos recientes.</div>
+              }
+            </div>
+
+            <table class="hidden w-full min-w-[620px] text-sm sm:table">
+              <thead>
+                <tr class="border-b border-gray-100 bg-gray-50 text-gray-400">
+                  <th class="px-4 py-3 text-left font-medium">Tipo</th>
+                  <th class="px-4 py-3 text-left font-medium">Producto</th>
+                  <th class="px-4 py-3 text-right font-medium">Cant.</th>
+                  <th class="px-4 py-3 text-left font-medium">Usuario</th>
+                  <th class="px-4 py-3 text-left font-medium">Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
+                  <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                    <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span></td>
+                    <td class="px-4 py-3">
+                      <p class="max-w-[220px] truncate font-semibold text-gray-800">{{ movimiento.productoNombre }}</p>
+                      <p class="font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                    </td>
+                    <td class="px-4 py-3 text-right font-semibold text-gray-700">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ movimiento.creadoPorNombre }}</td>
+                    <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ movimiento.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No hay movimientos recientes.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <div class="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-4 lg:col-span-2">
-        <h2 class="text-base font-semibold text-gray-700 mb-3">Últimos movimientos</h2>
-        <div class="min-h-0 flex-1 overflow-auto">
-          <div class="space-y-3 sm:hidden">
-            @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
-              <article class="rounded-xl border border-gray-100 bg-white p-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-gray-800">{{ movimiento.productoNombre }}</p>
-                    <p class="mt-0.5 text-xs text-gray-400">{{ movimiento.fecha | date:'dd/MM/yy' }}</p>
-                  </div>
-                  <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
-                </div>
-                <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
-                  <span class="truncate text-gray-500">{{ movimiento.creadoPorNombre }}</span>
-                  <span class="font-semibold text-gray-800">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</span>
-                </div>
-              </article>
-            } @empty {
-              <div class="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-400">No hay movimientos recientes.</div>
+      <aside class="flex min-h-0 flex-col gap-4">
+        <article class="rounded-xl border border-gray-200 bg-white p-4">
+          <h2 class="text-base font-semibold text-gray-800">Alertas</h2>
+          @if ((resumen?.productosStockCritico ?? 0) > 0) {
+            <div class="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-700">
+              <p class="font-semibold">{{ resumen?.productosStockCritico }} producto(s) con stock crítico</p>
+              <p class="mt-1 text-xs">Prioriza reposición desde Inventario o Reportes.</p>
+            </div>
+          } @else {
+            <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
+              <p class="font-semibold">Sin alertas de stock</p>
+              <p class="mt-1 text-xs">El inventario está por encima del mínimo configurado.</p>
+            </div>
+          }
+        </article>
+
+        <article class="rounded-xl border border-gray-200 bg-white p-4">
+          <h2 class="text-base font-semibold text-gray-800">Accesos rápidos</h2>
+          <div class="mt-3 space-y-2">
+            @for (action of quickActions; track action.path) {
+              <a [routerLink]="action.path" class="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-sm transition-colors hover:bg-gray-50">
+                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <i class="bi {{ action.icon }}"></i>
+                </span>
+                <span class="min-w-0">
+                  <span class="block truncate font-semibold text-gray-700">{{ action.label }}</span>
+                  <span class="block truncate text-xs text-gray-400">{{ action.description }}</span>
+                </span>
+                <i class="bi bi-chevron-right ml-auto text-xs text-gray-300"></i>
+              </a>
             }
           </div>
-
-          <table class="hidden w-full min-w-[420px] text-sm sm:table">
-            <thead>
-              <tr class="text-gray-400 border-b border-gray-100">
-                <th class="pb-2 text-left font-medium">Tipo</th>
-                <th class="pb-2 text-left font-medium">Producto</th>
-                <th class="pb-2 text-left font-medium">Cant.</th>
-                <th class="pb-2 text-left font-medium hidden sm:table-cell">Usuario</th>
-                <th class="pb-2 text-left font-medium">Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (movimiento of resumen?.ultimosMovimientos ?? []; track movimiento.id) {
-                <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                  <td class="py-2.5">
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
-                  </td>
-                  <td class="py-2.5 text-gray-700 max-w-[120px] truncate">{{ movimiento.productoNombre }}</td>
-                  <td class="py-2.5 text-gray-600">{{ movimientoCantidad(movimiento.tipo, movimiento.cantidad) }}</td>
-                  <td class="py-2.5 text-gray-600 hidden sm:table-cell">{{ movimiento.creadoPorNombre }}</td>
-                  <td class="py-2.5 text-gray-400 whitespace-nowrap">{{ movimiento.fecha | date:'dd/MM/yy' }}</td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="5" class="py-6 text-center text-sm text-gray-400">No hay movimientos recientes.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+        </article>
+      </aside>
+    </section>
   }
 </main>
