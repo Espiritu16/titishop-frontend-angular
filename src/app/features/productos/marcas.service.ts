@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { ActualizarMarcaRequest, CrearMarcaRequest, EstadoCatalogo, MarcaResponse, PaginaResponse } from '../../core/models';
+import { ActualizarEstadoCatalogoRequest, ActualizarMarcaRequest, CrearMarcaRequest, EstadoCatalogo, MarcaResponse, PaginaResponse } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class MarcasService {
@@ -29,7 +29,11 @@ export class MarcasService {
     return this.api.put<MarcaResponse, ActualizarMarcaRequest>(`/marcas/${id}`, request);
   }
 
+  actualizarEstado(id: string, estado: EstadoCatalogo): Observable<MarcaResponse> {
+    return this.api.patch<MarcaResponse, ActualizarEstadoCatalogoRequest>(`/marcas/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/marcas/${id}`);
+    return this.api.patch<void, ActualizarEstadoCatalogoRequest>(`/marcas/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

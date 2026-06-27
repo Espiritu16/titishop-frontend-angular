@@ -77,6 +77,10 @@ export interface ActualizarCategoriaRequest {
   estado: EstadoCatalogo;
 }
 
+export interface ActualizarEstadoCatalogoRequest {
+  estado: EstadoCatalogo;
+}
+
 export interface MarcaResponse {
   id: string;
   nombre: string;
@@ -126,6 +130,10 @@ export interface ActualizarProductoRequest extends CrearProductoRequest {
   estado: EstadoProducto;
 }
 
+export interface ActualizarEstadoProductoRequest {
+  estado: EstadoProducto;
+}
+
 export interface ArchivoResponse {
   url: string;
   ruta: string;
@@ -157,6 +165,10 @@ export interface CrearProveedorRequest {
 }
 
 export interface ActualizarProveedorRequest extends CrearProveedorRequest {
+  estado: EstadoProveedor;
+}
+
+export interface ActualizarEstadoProveedorRequest {
   estado: EstadoProveedor;
 }
 
@@ -196,6 +208,10 @@ export interface CrearInventarioRequest {
 export interface ActualizarInventarioRequest {
   stockMinimo: number;
   ubicacion: string;
+  estado: EstadoInventario;
+}
+
+export interface ActualizarEstadoInventarioRequest {
   estado: EstadoInventario;
 }
 
@@ -256,6 +272,10 @@ export interface ActualizarUsuarioRequest {
   email: string;
   password?: string | null;
   rol: RolUsuario;
+  estado: EstadoCatalogo;
+}
+
+export interface ActualizarEstadoUsuarioRequest {
   estado: EstadoCatalogo;
 }
 

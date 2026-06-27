@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarProveedorRequest,
+  ActualizarEstadoProveedorRequest,
   ConsultaRucProveedorResponse,
   CrearProveedorRequest,
   EstadoProveedor,
@@ -40,7 +41,11 @@ export class ProveedoresService {
     return this.api.put<ProveedorResponse, ActualizarProveedorRequest>(`/proveedores/${id}`, request);
   }
 
+  actualizarEstado(id: string, estado: EstadoProveedor): Observable<ProveedorResponse> {
+    return this.api.patch<ProveedorResponse, ActualizarEstadoProveedorRequest>(`/proveedores/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/proveedores/${id}`);
+    return this.api.patch<void, ActualizarEstadoProveedorRequest>(`/proveedores/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

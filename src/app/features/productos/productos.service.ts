@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { ActualizarProductoRequest, ArchivoResponse, CrearProductoRequest, EstadoProducto, PaginaResponse, ProductoResponse } from '../../core/models';
+import { ActualizarEstadoProductoRequest, ActualizarProductoRequest, ArchivoResponse, CrearProductoRequest, EstadoProducto, PaginaResponse, ProductoResponse } from '../../core/models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductosService {
@@ -39,7 +39,11 @@ export class ProductosService {
     return this.api.postForm<ArchivoResponse>('/archivos/productos', formData);
   }
 
+  actualizarEstado(id: string, estado: EstadoProducto): Observable<ProductoResponse> {
+    return this.api.patch<ProductoResponse, ActualizarEstadoProductoRequest>(`/productos/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/productos/${id}`);
+    return this.api.patch<void, ActualizarEstadoProductoRequest>(`/productos/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

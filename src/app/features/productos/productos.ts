@@ -1,10 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
+import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
+import { ConfirmacionService } from '../../core/confirmacion.service';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
+import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
+import { NotificacionService } from '../../core/notificacion.service';
 import {
   CategoriaResponse,
   ArchivoResponse,
@@ -24,7 +27,7 @@ import { ProductosService } from './productos.service';
   templateUrl: './productos.html',
   styleUrl: './productos.scss',
 })
-export class Productos {
+export class Productos implements OnDestroy {
   readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
@@ -57,6 +60,9 @@ export class Productos {
   imagenProductoNombre = '';
   imagenProductoPreview = '';
   imagenProductoError = '';
+  productoSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
+  categoriaNombreOriginal = '';
+  marcaNombreOriginal = '';
   filtrosProducto = {
     busqueda: '',
     estado: 'TODOS' as FiltroTodos<EstadoProducto>,
@@ -69,12 +75,15 @@ export class Productos {
   paginaActual = 0;
   totalPaginas = 0;
   totalRegistros = 0;
+  private readonly busquedaDebounced: AccionDebounced = crearAccionDebounced(() => this.irAPagina(0));
 
   constructor(
     private fb: FormBuilder,
     private productosService: ProductosService,
     private categoriasService: CategoriasService,
-    private marcasService: MarcasService
+    private marcasService: MarcasService,
+    private confirmacion: ConfirmacionService,
+    private notificacion: NotificacionService
   ) {
     this.productoForm = this.fb.nonNullable.group({
       nombre: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
@@ -218,6 +227,14 @@ export class Productos {
     this.irAPagina(0);
   }
 
+  onBusquedaChange(): void {
+    this.busquedaDebounced.schedule();
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaDebounced.destroy();
+  }
+
   irAPagina(page: number): void {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
@@ -227,7 +244,7 @@ export class Productos {
   guardarProducto(): void {
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
-      this.mensaje = 'Completa correctamente los campos obligatorios.';
+      this.notificacion.error('Completa correctamente los campos obligatorios.');
       return;
     }
 
@@ -243,6 +260,15 @@ export class Productos {
       precioCompra: value.precioCompra,
       precioVenta: value.precioVenta,
     };
+    const estadoActual = this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO';
+
+    if (this.editandoId && !this.imagenProductoSeleccionada) {
+      const actual = normalizarSnapshot({ ...requestBase, estado: estadoActual });
+      if (this.productoSnapshotOriginal && !hayCambios(this.productoSnapshotOriginal, actual)) {
+        this.notificacion.info('No hay cambios para actualizar.');
+        return;
+      }
+    }
 
     this.enviando = true;
     const imagen$: Observable<ArchivoResponse | null> = this.imagenProductoSeleccionada
@@ -259,7 +285,7 @@ export class Productos {
           return this.editandoId
             ? this.productosService.actualizar(this.editandoId, {
                 ...request,
-                estado: this.productos.find((producto) => producto.id === this.editandoId)?.estado ?? 'ACTIVO',
+                estado: estadoActual,
               })
             : this.productosService.crear(request);
         }),
@@ -269,14 +295,14 @@ export class Productos {
       )
       .subscribe({
       next: () => {
-        this.mensaje = this.editandoId
+        this.notificacion.success(this.editandoId
           ? 'Producto actualizado correctamente.'
-          : 'Producto registrado correctamente.';
+          : 'Producto registrado correctamente.');
         this.cancelarEdicion();
         this.cargarDatos();
       },
       error: (error: unknown) => {
-        this.mensaje = getApiErrorMessage(error);
+        this.notificacion.error(getApiErrorMessage(error));
       },
       });
   }
@@ -294,13 +320,25 @@ export class Productos {
       precioCompra: producto.precioCompra,
       precioVenta: producto.precioVenta,
     });
+    this.productoSnapshotOriginal = normalizarSnapshot({
+      nombre: producto.nombre,
+      sku: producto.sku,
+      descripcion: producto.descripcion,
+      imagenUrl: producto.imagenUrl ?? null,
+      categoriaId: producto.categoriaId,
+      marcaId: producto.marcaId,
+      precioCompra: producto.precioCompra,
+      precioVenta: producto.precioVenta,
+      estado: producto.estado,
+    });
     this.limpiarImagenSeleccionada();
-    this.mensaje = `Editando producto ${producto.nombre}.`;
+    this.notificacion.info(`Editando producto ${producto.nombre}.`);
   }
 
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.editandoId = null;
+    this.productoSnapshotOriginal = null;
     this.productoForm.reset({
       nombre: '',
       sku: '',
@@ -349,39 +387,31 @@ export class Productos {
     this.imagenProductoError = '';
   }
 
-  cambiarEstadoProducto(producto: ProductoResponse): void {
-    if (producto.estado === 'ACTIVO') {
-      this.productosService.inactivar(producto.id).subscribe({
-        next: () => {
-          this.mensaje = 'Producto desactivado correctamente.';
-          this.cargarDatos();
-        },
-        error: (error: unknown) => {
-          this.mensaje = getApiErrorMessage(error);
-        },
-      });
-      return;
-    }
+  async cambiarEstadoProducto(producto: ProductoResponse): Promise<void> {
+    const accion = producto.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} producto del catálogo`,
+      mensaje: accion === 'desactivar'
+        ? `Se desactivará ${producto.nombre} solo en el catálogo. Su inventario no se desactiva automáticamente y seguirá visible para controlar el stock existente.`
+        : `Se activará ${producto.nombre} en el catálogo. El estado de su inventario no se modifica automáticamente.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
 
     this.productosService
-      .actualizar(producto.id, {
-        nombre: producto.nombre,
-        sku: producto.sku,
-        descripcion: producto.descripcion,
-        imagenUrl: producto.imagenUrl,
-        categoriaId: producto.categoriaId,
-        marcaId: producto.marcaId,
-        precioCompra: producto.precioCompra,
-        precioVenta: producto.precioVenta,
-        estado: 'ACTIVO',
-      })
+      .actualizarEstado(producto.id, producto.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')
       .subscribe({
         next: () => {
-          this.mensaje = 'Producto activado correctamente.';
+          this.notificacion.success(
+            producto.estado === 'ACTIVO'
+              ? 'Producto desactivado correctamente.'
+              : 'Producto activado correctamente.'
+          );
           this.cargarDatos();
         },
         error: (error: unknown) => {
-          this.mensaje = getApiErrorMessage(error);
+          this.notificacion.error(getApiErrorMessage(error));
         },
       });
   }
@@ -389,6 +419,7 @@ export class Productos {
   iniciarEdicionCategoria(categoria: CategoriaResponse): void {
     this.categoriaEditandoId = categoria.id;
     this.categoriaTexto = categoria.nombre;
+    this.categoriaNombreOriginal = this.normalizarNombreCatalogo(categoria.nombre);
     this.categoriaError = '';
     this.categoriaMensaje = '';
   }
@@ -413,51 +444,65 @@ export class Productos {
     }
 
     const categoria = this.categorias.find((item) => item.id === this.categoriaEditandoId) ?? null;
+    if (categoria && nombre === this.categoriaNombreOriginal) {
+      this.categoriaError = 'No hay cambios para actualizar.';
+      this.notificacion.info(this.categoriaError);
+      return;
+    }
     const request$ = categoria
       ? this.categoriasService.actualizar(categoria.id, { nombre, estado: categoria.estado })
       : this.categoriasService.crear({ nombre });
 
     request$.subscribe({
       next: () => {
-        this.categoriaMensaje = categoria
+        this.notificacion.success(categoria
           ? 'Categoría actualizada correctamente.'
-          : 'Categoría creada correctamente.';
+          : 'Categoría creada correctamente.');
         this.reiniciarEditorCategoria();
         this.cargarDatos();
         this.cargarCategoriasModal();
       },
       error: (error: unknown) => {
         this.categoriaError = getApiErrorMessage(error);
+        this.notificacion.error(this.categoriaError);
       },
     });
   }
 
-  cambiarEstadoCategoria(categoria: CategoriaResponse): void {
+  async cambiarEstadoCategoria(categoria: CategoriaResponse): Promise<void> {
     if (categoria.estado === 'ACTIVO' && this.categoriasActivas.length === 1) {
       this.categoriaError = 'Debe existir al menos una categoría activa.';
+      this.notificacion.error(this.categoriaError);
       return;
     }
 
-    const request$: Observable<unknown> =
-      categoria.estado === 'ACTIVO'
-        ? this.categoriasService.inactivar(categoria.id)
-        : this.categoriasService.actualizar(categoria.id, {
-            nombre: categoria.nombre,
-            estado: 'ACTIVO',
-          });
+    const accion = categoria.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} categoría`,
+      mensaje: `Se va a ${accion} la categoría ${categoria.nombre}.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
+
+    const request$: Observable<unknown> = this.categoriasService.actualizarEstado(
+      categoria.id,
+      categoria.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    );
 
     request$.subscribe({
       next: () => {
-        this.categoriaMensaje =
+        this.notificacion.success(
           categoria.estado === 'ACTIVO'
             ? 'Categoría desactivada correctamente.'
-            : 'Categoría activada correctamente.';
+            : 'Categoría activada correctamente.');
         this.reiniciarEditorCategoria();
         this.cargarDatos();
         this.cargarCategoriasModal();
       },
       error: (error: unknown) => {
         this.categoriaError = getApiErrorMessage(error);
+        this.notificacion.error(this.categoriaError);
       },
     });
   }
@@ -478,12 +523,14 @@ export class Productos {
   reiniciarEditorCategoria(): void {
     this.categoriaTexto = '';
     this.categoriaEditandoId = null;
+    this.categoriaNombreOriginal = '';
     this.categoriaError = '';
   }
 
   iniciarEdicionMarca(marca: MarcaResponse): void {
     this.marcaEditandoId = marca.id;
     this.marcaTexto = marca.nombre;
+    this.marcaNombreOriginal = this.normalizarNombreCatalogo(marca.nombre);
     this.marcaError = '';
     this.marcaMensaje = '';
   }
@@ -508,51 +555,65 @@ export class Productos {
     }
 
     const marca = this.marcas.find((item) => item.id === this.marcaEditandoId) ?? null;
+    if (marca && nombre === this.marcaNombreOriginal) {
+      this.marcaError = 'No hay cambios para actualizar.';
+      this.notificacion.info(this.marcaError);
+      return;
+    }
     const request$ = marca
       ? this.marcasService.actualizar(marca.id, { nombre, estado: marca.estado })
       : this.marcasService.crear({ nombre });
 
     request$.subscribe({
       next: () => {
-        this.marcaMensaje = marca
+        this.notificacion.success(marca
           ? 'Marca actualizada correctamente.'
-          : 'Marca creada correctamente.';
+          : 'Marca creada correctamente.');
         this.reiniciarEditorMarca();
         this.cargarDatos();
         this.cargarMarcasModal();
       },
       error: (error: unknown) => {
         this.marcaError = getApiErrorMessage(error);
+        this.notificacion.error(this.marcaError);
       },
     });
   }
 
-  cambiarEstadoMarca(marca: MarcaResponse): void {
+  async cambiarEstadoMarca(marca: MarcaResponse): Promise<void> {
     if (marca.estado === 'ACTIVO' && this.marcasActivas.length === 1) {
       this.marcaError = 'Debe existir al menos una marca activa.';
+      this.notificacion.error(this.marcaError);
       return;
     }
 
-    const request$: Observable<unknown> =
-      marca.estado === 'ACTIVO'
-        ? this.marcasService.inactivar(marca.id)
-        : this.marcasService.actualizar(marca.id, {
-            nombre: marca.nombre,
-            estado: 'ACTIVO',
-          });
+    const accion = marca.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} marca`,
+      mensaje: `Se va a ${accion} la marca ${marca.nombre}.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
+
+    const request$: Observable<unknown> = this.marcasService.actualizarEstado(
+      marca.id,
+      marca.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    );
 
     request$.subscribe({
       next: () => {
-        this.marcaMensaje =
+        this.notificacion.success(
           marca.estado === 'ACTIVO'
             ? 'Marca desactivada correctamente.'
-            : 'Marca activada correctamente.';
+            : 'Marca activada correctamente.');
         this.reiniciarEditorMarca();
         this.cargarDatos();
         this.cargarMarcasModal();
       },
       error: (error: unknown) => {
         this.marcaError = getApiErrorMessage(error);
+        this.notificacion.error(this.marcaError);
       },
     });
   }
@@ -573,6 +634,7 @@ export class Productos {
   reiniciarEditorMarca(): void {
     this.marcaTexto = '';
     this.marcaEditandoId = null;
+    this.marcaNombreOriginal = '';
     this.marcaError = '';
   }
 
@@ -612,6 +674,7 @@ export class Productos {
       },
       error: (error: unknown) => {
         this.categoriaError = getApiErrorMessage(error);
+        this.notificacion.error(this.categoriaError);
       },
     });
   }
@@ -627,6 +690,7 @@ export class Productos {
       },
       error: (error: unknown) => {
         this.marcaError = getApiErrorMessage(error);
+        this.notificacion.error(this.marcaError);
       },
     });
   }

@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarUsuarioRequest,
+  ActualizarEstadoUsuarioRequest,
   CrearUsuarioRequest,
   EstadoCatalogo,
   PaginaResponse,
@@ -38,7 +39,11 @@ export class UsuariosService {
     return this.api.put<UsuarioResponse, ActualizarUsuarioRequest>(`/usuarios/${id}`, request);
   }
 
+  actualizarEstado(id: string, estado: EstadoCatalogo): Observable<UsuarioResponse> {
+    return this.api.patch<UsuarioResponse, ActualizarEstadoUsuarioRequest>(`/usuarios/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/usuarios/${id}`);
+    return this.api.patch<void, ActualizarEstadoUsuarioRequest>(`/usuarios/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

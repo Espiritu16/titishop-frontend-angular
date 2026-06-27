@@ -1,10 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
+import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
+import { ConfirmacionService } from '../../core/confirmacion.service';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos } from '../../core/listado-utils';
+import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { UsuariosService } from './usuarios.service';
 
 @Component({
@@ -14,7 +17,7 @@ import { UsuariosService } from './usuarios.service';
   templateUrl: './usuarios.html',
   styleUrl: './usuarios.scss',
 })
-export class Usuarios {
+export class Usuarios implements OnDestroy {
   readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
@@ -22,6 +25,7 @@ export class Usuarios {
   usuarioEditandoId: string | null = null;
   mostrarModal = false;
   enviando = false;
+  usuarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
 
   readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
   readonly rolesFiltro: Array<FiltroTodos<RolUsuario>> = ['TODOS', ...this.roles];
@@ -37,10 +41,13 @@ export class Usuarios {
   paginaActual = 0;
   totalPaginas = 0;
   totalRegistros = 0;
+  private readonly busquedaDebounced: AccionDebounced = crearAccionDebounced(() => this.irAPagina(0));
 
   constructor(
     private fb: FormBuilder,
-    private usuariosService: UsuariosService
+    private usuariosService: UsuariosService,
+    private confirmacion: ConfirmacionService,
+    private notificacion: NotificacionService
   ) {
     this.usuarioForm = this.fb.nonNullable.group({
       nombreCompleto: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120), Validators.pattern(this.namePattern)]],
@@ -98,6 +105,14 @@ export class Usuarios {
     this.irAPagina(0);
   }
 
+  onBusquedaChange(): void {
+    this.busquedaDebounced.schedule();
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaDebounced.destroy();
+  }
+
   irAPagina(page: number): void {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
@@ -107,7 +122,7 @@ export class Usuarios {
   guardarUsuario(): void {
     if (this.usuarioForm.invalid) {
       this.usuarioForm.markAllAsTouched();
-      this.mensaje = 'Completa correctamente los campos requeridos.';
+      this.notificacion.error('Completa correctamente los campos requeridos.');
       return;
     }
 
@@ -117,13 +132,23 @@ export class Usuarios {
       email: value.email.trim().toLowerCase(),
       rol: value.rol,
     };
+    const estadoActual = this.usuarios.find((usuario) => usuario.id === this.usuarioEditandoId)?.estado ?? 'ACTIVO';
+    const password = value.password.trim();
+    if (this.usuarioEditandoId && !password) {
+      const actual = normalizarSnapshot({ ...base, estado: estadoActual }, ['email']);
+      if (this.usuarioSnapshotOriginal && !hayCambios(this.usuarioSnapshotOriginal, actual)) {
+        this.notificacion.info('No hay cambios para actualizar.');
+        return;
+      }
+    }
+
     this.enviando = true;
 
     const request$ = this.usuarioEditandoId
       ? this.usuariosService.actualizar(this.usuarioEditandoId, {
           ...base,
-          password: value.password.trim() || null,
-          estado: this.usuarios.find((usuario) => usuario.id === this.usuarioEditandoId)?.estado ?? 'ACTIVO',
+          password: password || null,
+          estado: estadoActual,
         })
       : this.usuariosService.crear({
           ...base,
@@ -133,15 +158,15 @@ export class Usuarios {
     request$.subscribe({
       next: () => {
         this.enviando = false;
-        this.mensaje = this.usuarioEditandoId
+        this.notificacion.success(this.usuarioEditandoId
           ? 'Usuario actualizado correctamente.'
-          : 'Usuario registrado correctamente.';
+          : 'Usuario registrado correctamente.');
         this.cancelarEdicion();
         this.cargarUsuarios();
       },
       error: (error: unknown) => {
         this.enviando = false;
-        this.mensaje = getApiErrorMessage(error);
+        this.notificacion.error(getApiErrorMessage(error));
       },
     });
   }
@@ -158,12 +183,19 @@ export class Usuarios {
     this.usuarioForm.controls.password.clearValidators();
     this.usuarioForm.controls.password.setValidators([Validators.minLength(8), Validators.maxLength(120)]);
     this.usuarioForm.controls.password.updateValueAndValidity();
-    this.mensaje = `Editando a ${usuario.nombreCompleto}.`;
+    this.usuarioSnapshotOriginal = normalizarSnapshot({
+      nombreCompleto: usuario.nombreCompleto,
+      email: usuario.email,
+      rol: usuario.rol,
+      estado: usuario.estado,
+    }, ['email']);
+    this.notificacion.info(`Editando a ${usuario.nombreCompleto}.`);
   }
 
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.usuarioEditandoId = null;
+    this.usuarioSnapshotOriginal = null;
     this.usuarioForm.reset({
       nombreCompleto: '',
       email: '',
@@ -174,35 +206,29 @@ export class Usuarios {
     this.usuarioForm.controls.password.updateValueAndValidity();
   }
 
-  cambiarEstadoUsuario(usuario: UsuarioResponse): void {
-    if (usuario.estado === 'ACTIVO') {
-      this.usuariosService.inactivar(usuario.id).subscribe({
-        next: () => {
-          this.mensaje = 'Usuario desactivado correctamente.';
-          this.cargarUsuarios();
-        },
-        error: (error: unknown) => {
-          this.mensaje = getApiErrorMessage(error);
-        },
-      });
-      return;
-    }
+  async cambiarEstadoUsuario(usuario: UsuarioResponse): Promise<void> {
+    const accion = usuario.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} usuario`,
+      mensaje: `Se va a ${accion} el usuario ${usuario.nombreCompleto}.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
 
     this.usuariosService
-      .actualizar(usuario.id, {
-        nombreCompleto: usuario.nombreCompleto,
-        email: usuario.email,
-        password: null,
-        rol: usuario.rol,
-        estado: 'ACTIVO',
-      })
+      .actualizarEstado(usuario.id, usuario.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')
       .subscribe({
         next: () => {
-          this.mensaje = 'Usuario activado correctamente.';
+          this.notificacion.success(
+            usuario.estado === 'ACTIVO'
+              ? 'Usuario desactivado correctamente.'
+              : 'Usuario activado correctamente.'
+          );
           this.cargarUsuarios();
         },
         error: (error: unknown) => {
-          this.mensaje = getApiErrorMessage(error);
+          this.notificacion.error(getApiErrorMessage(error));
         },
       });
   }
