@@ -31,6 +31,18 @@ export class InventarioService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    estado?: EstadoInventario | 'TODOS';
+    stockEstado?: EstadoStockInventario | 'TODOS';
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/inventario/${formato}`, {
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+      stockEstado: params?.stockEstado === 'TODOS' ? undefined : params?.stockEstado,
+    });
+  }
+
   crear(request: CrearInventarioRequest): Observable<InventarioResponse> {
     return this.api.post<InventarioResponse, CrearInventarioRequest>('/inventario', request);
   }

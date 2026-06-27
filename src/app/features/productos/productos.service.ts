@@ -25,6 +25,20 @@ export class ProductosService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    estado?: EstadoProducto | 'TODOS';
+    categoriaId?: string;
+    marcaId?: string;
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/productos/${formato}`, {
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+      categoriaId: params?.categoriaId === 'TODOS' ? undefined : params?.categoriaId,
+      marcaId: params?.marcaId === 'TODOS' ? undefined : params?.marcaId,
+    });
+  }
+
   crear(request: CrearProductoRequest): Observable<ProductoResponse> {
     return this.api.post<ProductoResponse, CrearProductoRequest>('/productos', request);
   }

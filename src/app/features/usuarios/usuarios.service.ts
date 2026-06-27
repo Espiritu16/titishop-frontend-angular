@@ -31,6 +31,18 @@ export class UsuariosService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    rol?: RolUsuario | 'TODOS';
+    estado?: EstadoCatalogo | 'TODOS';
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/usuarios/${formato}`, {
+      busqueda: params?.busqueda,
+      rol: params?.rol === 'TODOS' ? undefined : params?.rol,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
+  }
+
   crear(request: CrearUsuarioRequest): Observable<UsuarioResponse> {
     return this.api.post<UsuarioResponse, CrearUsuarioRequest>('/usuarios', request);
   }

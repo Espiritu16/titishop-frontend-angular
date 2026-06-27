@@ -29,6 +29,16 @@ export class ProveedoresService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    estado?: EstadoProveedor | 'TODOS';
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/proveedores/${formato}`, {
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
+  }
+
   consultarRuc(ruc: string): Observable<ConsultaRucProveedorResponse> {
     return this.api.get<ConsultaRucProveedorResponse>(`/proveedores/consulta-ruc/${ruc}`);
   }
