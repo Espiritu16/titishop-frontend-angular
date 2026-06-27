@@ -1,7 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
+import { ConfirmacionService } from '../../../core/confirmacion.service';
 import { Role } from '../../../core/models';
+import { NotificacionService } from '../../../core/notificacion.service';
+import { ThemeService } from '../../../core/theme.service';
 
 interface NavItem {
   label: string;
@@ -19,7 +22,12 @@ interface NavItem {
 export class AppShell {
   sidebarOpen = false;
 
-  constructor(public auth: AuthService) {}
+  constructor(
+    public auth: AuthService,
+    public theme: ThemeService,
+    public confirmacion: ConfirmacionService,
+    public notificacion: NotificacionService
+  ) {}
 
   navItems: NavItem[] = [
     { label: 'Panel', path: '/dashboard', icon: 'bi-grid-1x2-fill' },
@@ -37,6 +45,22 @@ export class AppShell {
 
   get userName(): string { return this.auth.session()?.fullName ?? 'Usuario'; }
   get userRole(): string { return this.auth.session()?.role ?? ''; }
-  logout(): void { this.auth.logout(); }
+  async logout(): Promise<void> {
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: 'Cerrar sesión',
+      mensaje: 'Se cerrará tu sesión actual y volverás a la pantalla de acceso.',
+      textoConfirmar: 'Cerrar sesión',
+      tono: 'danger',
+    });
+    if (confirmado) this.auth.logout();
+  }
   closeSidebar(): void { this.sidebarOpen = false; }
+  toggleTheme(): void { this.theme.toggle(); }
+
+  @HostListener('document:keydown.enter', ['$event'])
+  confirmarConEnter(event: Event): void {
+    if (!this.confirmacion.estado()) return;
+    event.preventDefault();
+    this.confirmacion.aceptar();
+  }
 }

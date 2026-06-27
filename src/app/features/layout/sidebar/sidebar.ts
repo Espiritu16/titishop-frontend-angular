@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
+import { ConfirmacionService } from '../../../core/confirmacion.service';
 import { Role } from '../../../core/models';
 
 type SidebarItem = {
@@ -29,13 +30,19 @@ export class Sidebar {
     { label: 'Configuración', path: '/configuracion', icon: 'bi-gear', roles: ['ADMINISTRADOR'] },
   ];
 
-  constructor(public auth: AuthService) {}
+  constructor(public auth: AuthService, private confirmacion: ConfirmacionService) {}
 
   canShow(item: SidebarItem): boolean {
     return true;
   }
 
-  logout(): void {
-    this.auth.logout();
+  async logout(): Promise<void> {
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: 'Cerrar sesión',
+      mensaje: 'Se cerrará tu sesión actual y volverás a la pantalla de acceso.',
+      textoConfirmar: 'Cerrar sesión',
+      tono: 'danger',
+    });
+    if (confirmado) this.auth.logout();
   }
 }
