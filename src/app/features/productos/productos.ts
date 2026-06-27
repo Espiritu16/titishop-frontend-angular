@@ -5,6 +5,7 @@ import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { NotificacionService } from '../../core/notificacion.service';
@@ -44,6 +45,7 @@ export class Productos implements OnDestroy {
   categoriaError = '';
   categoriaMensaje = '';
   categoriaTexto = '';
+  categoriaBusqueda = '';
   categoriaEditandoId: string | null = null;
   categoriaPaginaActual = 0;
   categoriaTotalPaginas = 0;
@@ -51,6 +53,7 @@ export class Productos implements OnDestroy {
   marcaError = '';
   marcaMensaje = '';
   marcaTexto = '';
+  marcaBusqueda = '';
   marcaEditandoId: string | null = null;
   marcaPaginaActual = 0;
   marcaTotalPaginas = 0;
@@ -76,6 +79,14 @@ export class Productos implements OnDestroy {
   totalPaginas = 0;
   totalRegistros = 0;
   private readonly busquedaDebounced: AccionDebounced = crearAccionDebounced(() => this.irAPagina(0));
+  private readonly categoriaBusquedaDebounced: AccionDebounced = crearAccionDebounced(() => {
+    this.categoriaPaginaActual = 0;
+    this.cargarCategoriasModal();
+  });
+  private readonly marcaBusquedaDebounced: AccionDebounced = crearAccionDebounced(() => {
+    this.marcaPaginaActual = 0;
+    this.cargarMarcasModal();
+  });
 
   constructor(
     private fb: FormBuilder,
@@ -233,12 +244,23 @@ export class Productos implements OnDestroy {
 
   ngOnDestroy(): void {
     this.busquedaDebounced.destroy();
+    this.categoriaBusquedaDebounced.destroy();
+    this.marcaBusquedaDebounced.destroy();
+    this.limpiarImagenSeleccionada();
   }
 
   irAPagina(page: number): void {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
     this.cargarDatos();
+  }
+
+  exportarProductosExcel(): void {
+    this.exportarProductos('excel');
+  }
+
+  exportarProductosPdf(): void {
+    this.exportarProductos('pdf');
   }
 
   guardarProducto(): void {
@@ -424,6 +446,10 @@ export class Productos implements OnDestroy {
     this.categoriaMensaje = '';
   }
 
+  onBusquedaCategoriasModalChange(): void {
+    this.categoriaBusquedaDebounced.schedule();
+  }
+
   guardarCategoria(): void {
     this.categoriaError = '';
     const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
@@ -533,6 +559,10 @@ export class Productos implements OnDestroy {
     this.marcaNombreOriginal = this.normalizarNombreCatalogo(marca.nombre);
     this.marcaError = '';
     this.marcaMensaje = '';
+  }
+
+  onBusquedaMarcasModalChange(): void {
+    this.marcaBusquedaDebounced.schedule();
   }
 
   guardarMarca(): void {
@@ -654,6 +684,18 @@ export class Productos implements OnDestroy {
     return estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
   }
 
+  descripcionProducto(producto: ProductoResponse): string {
+    return producto.descripcion?.trim() || 'Sin descripción registrada.';
+  }
+
+  imagenProducto(producto: ProductoResponse): string | null {
+    return producto.imagenUrl?.trim() || null;
+  }
+
+  onImagenProductoError(producto: ProductoResponse): void {
+    producto.imagenUrl = '';
+  }
+
   private asegurarCatalogosSeleccionados(): void {
     if (!this.productoForm.controls.categoriaId.value && this.categoriasActivas[0]) {
       this.productoForm.patchValue({ categoriaId: this.categoriasActivas[0].id });
@@ -665,7 +707,11 @@ export class Productos implements OnDestroy {
 
   private cargarCategoriasModal(): void {
     if (!this.mostrarModalCategorias) return;
-    this.categoriasService.listar({ page: this.categoriaPaginaActual, size: this.pageSize }).subscribe({
+    this.categoriasService.listar({
+      page: this.categoriaPaginaActual,
+      size: this.pageSize,
+      busqueda: this.categoriaBusqueda,
+    }).subscribe({
       next: (pagina) => {
         this.categoriasModal = pagina.content;
         this.categoriaPaginaActual = pagina.page;
@@ -681,7 +727,11 @@ export class Productos implements OnDestroy {
 
   private cargarMarcasModal(): void {
     if (!this.mostrarModalMarcas) return;
-    this.marcasService.listar({ page: this.marcaPaginaActual, size: this.pageSize }).subscribe({
+    this.marcasService.listar({
+      page: this.marcaPaginaActual,
+      size: this.pageSize,
+      busqueda: this.marcaBusqueda,
+    }).subscribe({
       next: (pagina) => {
         this.marcasModal = pagina.content;
         this.marcaPaginaActual = pagina.page;
@@ -714,5 +764,15 @@ export class Productos implements OnDestroy {
     if (normalized.length < 2 || normalized.length > 80) return '';
     if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]+$/.test(normalized)) return '';
     return normalized;
+  }
+
+  private exportarProductos(tipo: 'excel' | 'pdf'): void {
+    this.productosService.exportar(tipo, this.filtrosProducto).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('productos', tipo));
+        this.notificacion.success(`Productos exportados a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }

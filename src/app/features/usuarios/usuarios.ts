@@ -4,6 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
@@ -117,6 +118,14 @@ export class Usuarios implements OnDestroy {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
     this.cargarUsuarios();
+  }
+
+  exportarUsuariosExcel(): void {
+    this.exportarUsuarios('excel');
+  }
+
+  exportarUsuariosPdf(): void {
+    this.exportarUsuarios('pdf');
   }
 
   guardarUsuario(): void {
@@ -246,5 +255,15 @@ export class Usuarios implements OnDestroy {
       input.value = sanitized;
       this.usuarioForm.controls.nombreCompleto.setValue(sanitized, { emitEvent: false });
     }
+  }
+
+  private exportarUsuarios(tipo: 'excel' | 'pdf'): void {
+    this.usuariosService.exportar(tipo, this.filtrosUsuario).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('usuarios', tipo));
+        this.notificacion.success(`Usuarios exportados a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }

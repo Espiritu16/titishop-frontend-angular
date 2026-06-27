@@ -4,6 +4,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoProveedor, ProveedorResponse } from '../../core/models';
@@ -151,6 +152,14 @@ export class Proveedores implements OnDestroy {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
     this.cargarProveedores();
+  }
+
+  exportarProveedoresExcel(): void {
+    this.exportarProveedores('excel');
+  }
+
+  exportarProveedoresPdf(): void {
+    this.exportarProveedores('pdf');
   }
 
   guardarProveedor(): void {
@@ -343,5 +352,15 @@ export class Proveedores implements OnDestroy {
   private normalizarEmailOpcional(value: string): string | null {
     const email = value.trim().toLowerCase().replace(/\s+/g, '');
     return email ? email : null;
+  }
+
+  private exportarProveedores(tipo: 'excel' | 'pdf'): void {
+    this.proveedoresService.exportar(tipo, this.filtrosProveedor).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('proveedores', tipo));
+        this.notificacion.success(`Proveedores exportados a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }
