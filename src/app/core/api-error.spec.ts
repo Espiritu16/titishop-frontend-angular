@@ -26,6 +26,18 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(new Error('network failed'))).toBe('No se pudo completar la operación.');
   });
 
+  it('uses a connection fallback when the backend cannot be reached', () => {
+    const error = new HttpErrorResponse({ status: 0 });
+
+    expect(getApiErrorMessage(error)).toBe('No se pudo conectar con el servidor.');
+  });
+
+  it('uses a permission fallback when a non-standard 403 is returned', () => {
+    const error = new HttpErrorResponse({ status: 403, error: 'Forbidden' });
+
+    expect(getApiErrorMessage(error)).toBe('No tienes permisos para realizar esta acción.');
+  });
+
   it('preserves backend messages without details', () => {
     const error = new HttpErrorResponse({
       status: 401,
