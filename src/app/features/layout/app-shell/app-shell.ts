@@ -30,11 +30,11 @@ export class AppShell {
   ) {}
 
   navItems: NavItem[] = [
-    { label: 'Panel', path: '/dashboard', icon: 'bi-grid-1x2-fill' },
-    { label: 'Productos', path: '/productos', icon: 'bi-box-seam', hasArrow: true },
-    { label: 'Proveedores', path: '/proveedores', icon: 'bi-truck', hasArrow: true },
-    { label: 'Inventario', path: '/inventario', icon: 'bi-archive', hasArrow: true },
-    { label: 'Movimientos', path: '/movimientos', icon: 'bi-arrow-left-right', hasArrow: true },
+    { label: 'Panel', path: '/dashboard', icon: 'bi-grid-1x2-fill', roles: ['ADMINISTRADOR', 'SUPERVISOR'] },
+    { label: 'Productos', path: '/productos', icon: 'bi-box-seam', hasArrow: true, roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Proveedores', path: '/proveedores', icon: 'bi-truck', hasArrow: true, roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Inventario', path: '/inventario', icon: 'bi-archive', hasArrow: true, roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Movimientos', path: '/movimientos', icon: 'bi-arrow-left-right', hasArrow: true, roles: ['ADMINISTRADOR', 'ALMACENERO'] },
     { label: 'Reportes', path: '/reportes', icon: 'bi-bar-chart-line', hasArrow: true, roles: ['ADMINISTRADOR', 'SUPERVISOR'] },
   ];
 
@@ -45,6 +45,13 @@ export class AppShell {
 
   get userName(): string { return this.auth.session()?.fullName ?? 'Usuario'; }
   get userRole(): string { return this.auth.session()?.role ?? ''; }
+  get visibleNavItems(): NavItem[] { return this.navItems.filter((item) => this.canShow(item)); }
+  get visibleConfigItems(): NavItem[] { return this.configItems.filter((item) => this.canShow(item)); }
+
+  canShow(item: NavItem): boolean {
+    return !item.roles || this.auth.hasAnyRole(item.roles);
+  }
+
   async logout(): Promise<void> {
     const confirmado = await this.confirmacion.confirmar({
       titulo: 'Cerrar sesión',
