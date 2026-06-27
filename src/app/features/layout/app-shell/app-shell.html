@@ -33,7 +33,7 @@
 
     <!-- Nav -->
     <nav class="flex flex-col gap-0.5 px-2 flex-1">
-      @for (item of navItems; track item.label) {
+      @for (item of visibleNavItems; track item.label) {
         <a
           [routerLink]="item.path"
           routerLinkActive="bg-indigo-50 text-indigo-600 font-semibold"
@@ -48,20 +48,22 @@
         </a>
       }
 
-      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mt-5 mb-1 px-2.5">Configuración</p>
-      @for (item of configItems; track item.label) {
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="bg-indigo-50 text-indigo-600 font-semibold"
-          (click)="closeSidebar()"
-          class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-        >
-          <i class="bi {{item.icon}} text-sm shrink-0"></i>
-          <span class="flex-1 truncate">{{ item.label }}</span>
-          @if (item.hasArrow) {
-            <i class="bi bi-chevron-right text-xs text-gray-300"></i>
-          }
-        </a>
+      @if (visibleConfigItems.length) {
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mt-5 mb-1 px-2.5">Configuración</p>
+        @for (item of visibleConfigItems; track item.label) {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="bg-indigo-50 text-indigo-600 font-semibold"
+            (click)="closeSidebar()"
+            class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <i class="bi {{item.icon}} text-sm shrink-0"></i>
+            <span class="flex-1 truncate">{{ item.label }}</span>
+            @if (item.hasArrow) {
+              <i class="bi bi-chevron-right text-xs text-gray-300"></i>
+            }
+          </a>
+        }
       }
     </nav>
 

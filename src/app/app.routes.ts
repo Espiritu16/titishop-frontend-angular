@@ -30,8 +30,13 @@ const requireRoles = (roles: Role[]): CanActivateFn => {
     const auth = inject(AuthService);
     const router = inject(Router);
     if (!auth.session() || !auth.token()) return router.createUrlTree(['/login']);
-    return auth.hasAnyRole(roles) ? true : router.createUrlTree(['/dashboard']);
+    return auth.hasAnyRole(roles) ? true : router.createUrlTree([rutaInicialPorRol(auth.session()?.role)]);
   };
+};
+
+const rutaInicialPorRol = (role?: Role): string => {
+  if (role === 'ALMACENERO') return '/productos';
+  return '/dashboard';
 };
 
 export const routes: Routes = [
@@ -41,12 +46,12 @@ export const routes: Routes = [
     component: AppShell,
     canMatch: [requireAuth],
     children: [
-      { path: 'inicio', component: Panel },
-      { path: 'dashboard', component: Panel },
-      { path: 'productos', component: Productos },
-      { path: 'proveedores', component: Proveedores },
-      { path: 'inventario', component: Inventario },
-      { path: 'movimientos', component: Movimientos },
+      { path: 'inicio', component: Panel, canActivate: [requireRoles(['ADMINISTRADOR', 'SUPERVISOR'])] },
+      { path: 'dashboard', component: Panel, canActivate: [requireRoles(['ADMINISTRADOR', 'SUPERVISOR'])] },
+      { path: 'productos', component: Productos, canActivate: [requireRoles(['ADMINISTRADOR', 'ALMACENERO'])] },
+      { path: 'proveedores', component: Proveedores, canActivate: [requireRoles(['ADMINISTRADOR', 'ALMACENERO'])] },
+      { path: 'inventario', component: Inventario, canActivate: [requireRoles(['ADMINISTRADOR', 'ALMACENERO'])] },
+      { path: 'movimientos', component: Movimientos, canActivate: [requireRoles(['ADMINISTRADOR', 'ALMACENERO'])] },
       { path: 'reportes', component: Reportes, canActivate: [requireRoles(['ADMINISTRADOR', 'SUPERVISOR'])] },
       { path: 'usuarios', component: Usuarios, canActivate: [requireRoles(['ADMINISTRADOR'])] },
       { path: 'configuracion', component: Configuracion, canActivate: [requireRoles(['ADMINISTRADOR'])] },

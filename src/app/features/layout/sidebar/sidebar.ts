@@ -20,11 +20,11 @@ type SidebarItem = {
 })
 export class Sidebar {
   readonly items: SidebarItem[] = [
-    { label: 'Panel', path: '/dashboard', icon: 'bi-speedometer2' },
-    { label: 'Productos', path: '/productos', icon: 'bi-box-seam' },
-    { label: 'Proveedores', path: '/proveedores', icon: 'bi-truck' },
-    { label: 'Inventario', path: '/inventario', icon: 'bi-stack' },
-    { label: 'Movimientos', path: '/movimientos', icon: 'bi-arrow-left-right' },
+    { label: 'Panel', path: '/dashboard', icon: 'bi-speedometer2', roles: ['ADMINISTRADOR', 'SUPERVISOR'] },
+    { label: 'Productos', path: '/productos', icon: 'bi-box-seam', roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Proveedores', path: '/proveedores', icon: 'bi-truck', roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Inventario', path: '/inventario', icon: 'bi-stack', roles: ['ADMINISTRADOR', 'ALMACENERO'] },
+    { label: 'Movimientos', path: '/movimientos', icon: 'bi-arrow-left-right', roles: ['ADMINISTRADOR', 'ALMACENERO'] },
     { label: 'Reportes', path: '/reportes', icon: 'bi-bar-chart', roles: ['ADMINISTRADOR', 'SUPERVISOR'] },
     { label: 'Usuarios', path: '/usuarios', icon: 'bi-people', roles: ['ADMINISTRADOR'] },
     { label: 'Configuración', path: '/configuracion', icon: 'bi-gear', roles: ['ADMINISTRADOR'] },
@@ -33,7 +33,7 @@ export class Sidebar {
   constructor(public auth: AuthService, private confirmacion: ConfirmacionService) {}
 
   canShow(item: SidebarItem): boolean {
-    return true;
+    return !item.roles || this.auth.hasAnyRole(item.roles);
   }
 
   async logout(): Promise<void> {

@@ -15,12 +15,21 @@ describe('routes', () => {
     const shellRoute = routes.find((route) => route.path === '');
     const children = shellRoute?.children ?? [];
 
-    const reportesRoute = children.find((route) => route.path === 'reportes');
-    const usuariosRoute = children.find((route) => route.path === 'usuarios');
-    const configuracionRoute = children.find((route) => route.path === 'configuracion');
+    const protectedPaths = [
+      'inicio',
+      'dashboard',
+      'productos',
+      'proveedores',
+      'inventario',
+      'movimientos',
+      'reportes',
+      'usuarios',
+      'configuracion',
+    ];
 
-    expect(reportesRoute?.canActivate?.length).toBeGreaterThan(0);
-    expect(usuariosRoute?.canActivate?.length).toBeGreaterThan(0);
-    expect(configuracionRoute?.canActivate?.length).toBeGreaterThan(0);
+    for (const path of protectedPaths) {
+      const route = children.find((child) => child.path === path);
+      expect(route?.canActivate?.length).toBeGreaterThan(0);
+    }
   });
 });
