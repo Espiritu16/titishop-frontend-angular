@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarInventarioRequest,
+  ActualizarEstadoInventarioRequest,
   CrearInventarioRequest,
   EstadoInventario,
   EstadoStockInventario,
@@ -38,7 +39,11 @@ export class InventarioService {
     return this.api.put<InventarioResponse, ActualizarInventarioRequest>(`/inventario/${id}`, request);
   }
 
+  actualizarEstado(id: string, estado: EstadoInventario): Observable<InventarioResponse> {
+    return this.api.patch<InventarioResponse, ActualizarEstadoInventarioRequest>(`/inventario/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/inventario/${id}`);
+    return this.api.patch<void, ActualizarEstadoInventarioRequest>(`/inventario/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

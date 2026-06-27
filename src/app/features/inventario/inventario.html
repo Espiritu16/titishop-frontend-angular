@@ -19,10 +19,6 @@
     </button>
   </div>
 
-  @if (mensaje) {
-    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{{ mensaje }}</div>
-  }
-
   @if (estadoListado === 'cargando') {
     <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando inventario...</div>
   } @else if (estadoListado === 'error') {
@@ -33,7 +29,7 @@
         <label class="relative block">
           <span class="sr-only">Buscar inventario</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-          <input type="search" [(ngModel)]="filtrosInventario.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaInventario" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por producto, SKU o ubicación">
+          <input type="search" [(ngModel)]="filtrosInventario.busqueda" (ngModelChange)="onBusquedaChange()" name="busquedaInventario" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por producto, SKU o ubicación">
         </label>
         <label>
           <span class="sr-only">Filtrar inventario por estado de registro</span>
@@ -61,6 +57,9 @@
                 <div class="min-w-0">
                   <h2 class="truncate text-base font-semibold text-gray-800">{{ item.productoNombre }}</h2>
                   <p class="mt-0.5 font-mono text-xs text-gray-400">{{ item.productoSku }}</p>
+                  @if (productoInactivo(item)) {
+                    <p class="mt-1 text-xs font-medium text-amber-600">Producto inactivo: stock solo en control de inventario.</p>
+                  }
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ stockClase(item) }}">{{ estadoStock(item) }}</span>
               </div>
@@ -78,13 +77,16 @@
                   <dd class="truncate text-gray-700">{{ item.ubicacion }}</dd>
                 </div>
               </dl>
-              <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoClase(item.estado) }}">{{ item.estado }}</span>
+              <div class="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                <div class="flex flex-wrap gap-2">
+                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoProductoClase(productoEstado(item)) }}">Producto: {{ productoEstado(item) }}</span>
+                  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoClase(item.estado) }}">Inventario: {{ item.estado }}</span>
+                </div>
                 <div class="flex gap-2">
                   <button type="button" (click)="editarInventario(item)" aria-label="Editar inventario" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
                     <i class="bi bi-pencil text-sm text-gray-500"></i>
                   </button>
-                  <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar inventario' : 'Activar inventario'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                  <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar registro de inventario' : 'Activar registro de inventario'" [title]="item.estado === 'ACTIVO' ? 'Desactivar registro de inventario' : 'Activar registro de inventario'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
                     <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="item.estado === 'ACTIVO'" [class.bi-toggle-off]="item.estado === 'INACTIVO'"></i>
                   </button>
                 </div>
@@ -95,7 +97,7 @@
           }
         </div>
 
-        <table class="hidden w-full min-w-[720px] text-sm xl:table">
+        <table class="hidden w-full min-w-[860px] text-sm xl:table">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-100 text-gray-400">
               <th class="px-4 py-3 text-left font-medium">Producto</th>
@@ -103,7 +105,8 @@
               <th class="px-4 py-3 text-left font-medium">Stock</th>
               <th class="px-4 py-3 text-left font-medium hidden sm:table-cell">Mín.</th>
               <th class="px-4 py-3 text-left font-medium">Stock</th>
-              <th class="px-4 py-3 text-left font-medium">Registro</th>
+              <th class="px-4 py-3 text-left font-medium">Producto</th>
+              <th class="px-4 py-3 text-left font-medium">Inventario</th>
               <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Ubicación</th>
               <th class="px-4 py-3 text-left font-medium hidden lg:table-cell">Actualizado</th>
               <th class="px-4 py-3 text-left font-medium">Acciones</th>
@@ -112,11 +115,17 @@
           <tbody>
             @for (item of inventarios; track item.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3 font-medium text-gray-800">{{ item.productoNombre }}</td>
+                <td class="px-4 py-3">
+                  <p class="font-medium text-gray-800">{{ item.productoNombre }}</p>
+                  @if (productoInactivo(item)) {
+                    <p class="mt-0.5 text-xs text-amber-600">Catálogo inactivo</p>
+                  }
+                </td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{{ item.productoSku }}</td>
                 <td class="px-4 py-3 font-semibold text-gray-800">{{ item.stockActual }}</td>
                 <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ item.stockMinimo }}</td>
                 <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ stockClase(item) }}">{{ estadoStock(item) }}</span></td>
+                <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoProductoClase(productoEstado(item)) }}">{{ productoEstado(item) }}</span></td>
                 <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ estadoClase(item.estado) }}">{{ item.estado }}</span></td>
                 <td class="px-4 py-3 text-gray-600 hidden lg:table-cell">{{ item.ubicacion }}</td>
                 <td class="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{{ (item.actualizadoEn || item.creadoEn) | date:'dd/MM/yy HH:mm' }}</td>
@@ -125,7 +134,7 @@
                     <button type="button" (click)="editarInventario(item)" aria-label="Editar inventario" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
                       <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
                     </button>
-                    <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar inventario' : 'Activar inventario'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <button type="button" (click)="cambiarEstadoInventario(item)" [attr.aria-label]="item.estado === 'ACTIVO' ? 'Desactivar registro de inventario' : 'Activar registro de inventario'" [title]="item.estado === 'ACTIVO' ? 'Desactivar registro de inventario' : 'Activar registro de inventario'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
                       <i class="bi text-sm text-gray-500 hover:text-red-500" [class.bi-toggle-on]="item.estado === 'ACTIVO'" [class.bi-toggle-off]="item.estado === 'INACTIVO'"></i>
                     </button>
                   </div>

@@ -1,11 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
+import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
+import { ConfirmacionService } from '../../core/confirmacion.service';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
-import { EstadoInventario, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
+import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
+import { EstadoInventario, EstadoProducto, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { ProductosService } from '../productos/productos.service';
 import { InventarioService } from './inventario.service';
 
@@ -16,7 +19,7 @@ import { InventarioService } from './inventario.service';
   templateUrl: './inventario.html',
   styleUrl: './inventario.scss',
 })
-export class Inventario {
+export class Inventario implements OnDestroy {
   readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
@@ -26,6 +29,7 @@ export class Inventario {
   productos: ProductoResponse[] = [];
   mostrarModal = false;
   enviando = false;
+  inventarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
   filtrosInventario = {
     busqueda: '',
     estado: 'TODOS' as FiltroTodos<EstadoInventario>,
@@ -38,11 +42,14 @@ export class Inventario {
   paginaActual = 0;
   totalPaginas = 0;
   totalRegistros = 0;
+  private readonly busquedaDebounced: AccionDebounced = crearAccionDebounced(() => this.irAPagina(0));
 
   constructor(
     private fb: FormBuilder,
     private inventarioService: InventarioService,
-    private productosService: ProductosService
+    private productosService: ProductosService,
+    private confirmacion: ConfirmacionService,
+    private notificacion: NotificacionService
   ) {
     this.inventarioForm = this.fb.nonNullable.group({
       productoId: ['', [Validators.required]],
@@ -60,6 +67,14 @@ export class Inventario {
         producto.estado === 'ACTIVO' &&
         (!productoIdsConInventario.has(producto.id) || producto.id === this.productoEditandoId())
     );
+  }
+
+  productoEstado(item: InventarioResponse): EstadoProducto | 'DESCONOCIDO' {
+    return this.productos.find((producto) => producto.id === item.productoId)?.estado ?? 'DESCONOCIDO';
+  }
+
+  productoInactivo(item: InventarioResponse): boolean {
+    return this.productoEstado(item) === 'INACTIVO';
   }
 
   cargarDatos(): void {
@@ -112,6 +127,14 @@ export class Inventario {
     this.irAPagina(0);
   }
 
+  onBusquedaChange(): void {
+    this.busquedaDebounced.schedule();
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaDebounced.destroy();
+  }
+
   irAPagina(page: number): void {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
@@ -122,17 +145,30 @@ export class Inventario {
     if (this.enviando) return;
     if (this.inventarioForm.invalid) {
       this.inventarioForm.markAllAsTouched();
-      this.mensaje = 'Completa correctamente los campos obligatorios.';
+      this.notificacion.error('Completa correctamente los campos obligatorios.');
       return;
     }
 
     const value = this.inventarioForm.getRawValue();
+    const estadoActual = this.inventarios.find((item) => item.id === this.editandoId)?.estado ?? 'ACTIVO';
+    if (this.editandoId) {
+      const actual = normalizarSnapshot({
+        stockMinimo: value.stockMinimo,
+        ubicacion: this.normalizarTexto(value.ubicacion),
+        estado: estadoActual,
+      });
+      if (this.inventarioSnapshotOriginal && !hayCambios(this.inventarioSnapshotOriginal, actual)) {
+        this.notificacion.info('No hay cambios para actualizar.');
+        return;
+      }
+    }
+
     this.enviando = true;
     const request$ = this.editandoId
       ? this.inventarioService.actualizar(this.editandoId, {
           stockMinimo: value.stockMinimo,
           ubicacion: this.normalizarTexto(value.ubicacion),
-          estado: this.inventarios.find((item) => item.id === this.editandoId)?.estado ?? 'ACTIVO',
+          estado: estadoActual,
         })
       : this.inventarioService.crear({
           productoId: value.productoId,
@@ -144,15 +180,15 @@ export class Inventario {
     request$.subscribe({
       next: () => {
         this.enviando = false;
-        this.mensaje = this.editandoId
+        this.notificacion.success(this.editandoId
           ? 'Inventario actualizado correctamente.'
-          : 'Inventario creado correctamente.';
+          : 'Inventario creado correctamente.');
         this.cancelarEdicion();
         this.cargarDatos();
       },
       error: (error: unknown) => {
         this.enviando = false;
-        this.mensaje = getApiErrorMessage(error);
+        this.notificacion.error(getApiErrorMessage(error));
       },
     });
   }
@@ -168,12 +204,18 @@ export class Inventario {
     });
     this.inventarioForm.controls.productoId.disable({ emitEvent: false });
     this.inventarioForm.controls.stockActual.disable({ emitEvent: false });
-    this.mensaje = `Editando inventario de ${item.productoNombre}.`;
+    this.inventarioSnapshotOriginal = normalizarSnapshot({
+      stockMinimo: item.stockMinimo,
+      ubicacion: item.ubicacion,
+      estado: item.estado,
+    });
+    this.notificacion.info(`Editando inventario de ${item.productoNombre}.`);
   }
 
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.editandoId = null;
+    this.inventarioSnapshotOriginal = null;
     this.inventarioForm.controls.productoId.enable({ emitEvent: false });
     this.inventarioForm.controls.stockActual.enable({ emitEvent: false });
     this.inventarioForm.reset({
@@ -184,26 +226,33 @@ export class Inventario {
     });
   }
 
-  cambiarEstadoInventario(item: InventarioResponse): void {
-    const request$: Observable<unknown> =
-      item.estado === 'ACTIVO'
-        ? this.inventarioService.inactivar(item.id)
-        : this.inventarioService.actualizar(item.id, {
-            stockMinimo: item.stockMinimo,
-            ubicacion: item.ubicacion,
-            estado: 'ACTIVO',
-          });
+  async cambiarEstadoInventario(item: InventarioResponse): Promise<void> {
+    const accion = item.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} registro de inventario`,
+      mensaje: accion === 'desactivar'
+        ? `Se intentará desactivar solo el registro de inventario de ${item.productoNombre}. Si aún tiene stock, el backend lo rechazará para proteger el control físico.`
+        : `Se activará nuevamente el registro de inventario de ${item.productoNombre}. El estado del producto de catálogo no se modifica.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
+
+    const request$: Observable<unknown> = this.inventarioService.actualizarEstado(
+      item.id,
+      item.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    );
 
     request$.subscribe({
       next: () => {
-        this.mensaje =
+        this.notificacion.success(
           item.estado === 'ACTIVO'
             ? 'Inventario desactivado correctamente.'
-            : 'Inventario activado correctamente.';
+            : 'Inventario activado correctamente.');
         this.cargarDatos();
       },
       error: (error: unknown) => {
-        this.mensaje = getApiErrorMessage(error);
+        this.notificacion.error(getApiErrorMessage(error));
       },
     });
   }
@@ -223,6 +272,12 @@ export class Inventario {
 
   estadoClase(status: EstadoInventario): string {
     return status === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
+  }
+
+  estadoProductoClase(status: EstadoProducto | 'DESCONOCIDO'): string {
+    if (status === 'ACTIVO') return 'bg-green-100 text-green-700';
+    if (status === 'INACTIVO') return 'bg-amber-100 text-amber-700';
+    return 'bg-gray-100 text-gray-500';
   }
 
   private productoEditandoId(): string | null {
