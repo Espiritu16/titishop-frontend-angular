@@ -2,8 +2,11 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { getApiErrorMessage } from '../../core/api-error';
+import { nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { ColumnaExportacion, ExportacionSinDatosError, exportarExcel, exportarPdf } from '../../core/exportacion';
 import { PanelResumenResponse, TipoMovimiento } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { PanelService } from './panel.service';
 
 interface KpiItem {
@@ -33,7 +36,10 @@ export class Panel {
   error = '';
   resumen: PanelResumenResponse | null = null;
 
-  constructor(private panelService: PanelService) {
+  constructor(
+    private panelService: PanelService,
+    private notificacion: NotificacionService
+  ) {
     this.cargarPanel();
   }
 
@@ -147,5 +153,40 @@ export class Panel {
 
   movimientoCantidad(type: TipoMovimiento, quantity: number): string {
     return type === 'SALIDA' ? `-${quantity}` : `+${quantity}`;
+  }
+
+  exportarPanelExcel(): void {
+    this.exportarPanel('excel');
+  }
+
+  exportarPanelPdf(): void {
+    this.exportarPanel('pdf');
+  }
+
+  private exportarPanel(tipo: 'excel' | 'pdf'): void {
+    const filas = [
+      ...this.kpis.map((kpi) => ({ seccion: 'Indicador', nombre: kpi.label, valor: kpi.value, detalle: kpi.meta })),
+      ...((this.resumen?.ultimosMovimientos ?? []).map((movimiento) => ({
+        seccion: 'Movimiento',
+        nombre: `${movimiento.tipo} ${movimiento.productoNombre}`,
+        valor: this.movimientoCantidad(movimiento.tipo, movimiento.cantidad),
+        detalle: `${movimiento.productoSku} - ${movimiento.creadoPorNombre} - ${movimiento.fecha}`,
+      }))),
+    ];
+    const columnas: Array<ColumnaExportacion<(typeof filas)[number]>> = [
+      { encabezado: 'Seccion', valor: (fila) => fila.seccion },
+      { encabezado: 'Nombre', valor: (fila) => fila.nombre },
+      { encabezado: 'Valor', valor: (fila) => fila.valor },
+      { encabezado: 'Detalle', valor: (fila) => fila.detalle },
+    ];
+    try {
+      const archivo = nombreArchivoExportacion('panel operativo', tipo).replace(/\.(xls|pdf)$/i, '');
+      if (tipo === 'excel') exportarExcel('Panel operativo', archivo, filas, columnas);
+      else exportarPdf('Panel operativo', archivo, filas, columnas);
+      this.notificacion.success(`Panel exportado a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+    } catch (error) {
+      if (error instanceof ExportacionSinDatosError) this.notificacion.info(error.message);
+      else this.notificacion.error('No se pudo exportar el panel.');
+    }
   }
 }
