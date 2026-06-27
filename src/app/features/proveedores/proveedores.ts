@@ -1,13 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
+import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
+import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
-import { FiltroTodos } from '../../core/listado-utils';
+import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoProveedor, ProveedorResponse } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { ProveedoresService } from './proveedores.service';
-
-type ToastType = 'success' | 'error';
 
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
@@ -16,34 +18,35 @@ type ToastType = 'success' | 'error';
   templateUrl: './proveedores.html',
   styleUrl: './proveedores.scss',
 })
-export class Proveedores {
+export class Proveedores implements OnDestroy {
   readonly pageSize = 10;
   mensaje = '';
   errorListado = '';
   errorRuc = '';
-  toastMessage = '';
-  toastType: ToastType = 'success';
   editandoId: string | null = null;
   proveedores: ProveedorResponse[] = [];
   estadoListado: EstadoCarga = 'inicial';
   enviando = false;
   consultandoRuc = false;
   mostrarModal = false;
+  proveedorSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
   filtrosProveedor = {
     busqueda: '',
     estado: 'TODOS' as FiltroTodos<EstadoProveedor>,
   };
-  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly proveedorForm;
   readonly estadosProveedor: Array<FiltroTodos<EstadoProveedor>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
   paginaActual = 0;
   totalPaginas = 0;
   totalRegistros = 0;
+  private readonly busquedaDebounced: AccionDebounced = crearAccionDebounced(() => this.irAPagina(0));
 
   constructor(
     private fb: FormBuilder,
-    private proveedoresService: ProveedoresService
+    private proveedoresService: ProveedoresService,
+    private confirmacion: ConfirmacionService,
+    private notificacion: NotificacionService
   ) {
     this.proveedorForm = this.fb.nonNullable.group({
       razonSocial: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
@@ -137,10 +140,26 @@ export class Proveedores {
     this.irAPagina(0);
   }
 
+  onBusquedaChange(): void {
+    this.busquedaDebounced.schedule();
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaDebounced.destroy();
+  }
+
   irAPagina(page: number): void {
     if (page < 0 || (this.totalPaginas > 0 && page >= this.totalPaginas)) return;
     this.paginaActual = page;
     this.cargarProveedores();
+  }
+
+  exportarProveedoresExcel(): void {
+    this.exportarProveedores('excel');
+  }
+
+  exportarProveedoresPdf(): void {
+    this.exportarProveedores('pdf');
   }
 
   guardarProveedor(): void {
@@ -161,12 +180,21 @@ export class Proveedores {
       email: this.normalizarEmailOpcional(value.email),
       direccion: this.normalizarTexto(value.direccion),
     };
+    const estadoActual = this.proveedores.find((proveedor) => proveedor.id === this.editandoId)?.estado ?? 'ACTIVO';
+
+    if (this.editandoId) {
+      const actual = normalizarSnapshot({ ...request, estado: estadoActual }, ['email']);
+      if (this.proveedorSnapshotOriginal && !hayCambios(this.proveedorSnapshotOriginal, actual)) {
+        this.mostrarToast('No hay cambios para actualizar.', 'success');
+        return;
+      }
+    }
 
     this.enviando = true;
     const request$ = this.editandoId
       ? this.proveedoresService.actualizar(this.editandoId, {
           ...request,
-          estado: this.proveedores.find((proveedor) => proveedor.id === this.editandoId)?.estado ?? 'ACTIVO',
+          estado: estadoActual,
         })
       : this.proveedoresService.crear(request);
 
@@ -198,6 +226,15 @@ export class Proveedores {
       email: proveedor.email ?? '',
       direccion: proveedor.direccion,
     });
+    this.proveedorSnapshotOriginal = normalizarSnapshot({
+      razonSocial: proveedor.razonSocial,
+      ruc: proveedor.ruc,
+      celular: proveedor.celular ?? null,
+      telefono: proveedor.telefono ?? null,
+      email: proveedor.email ?? null,
+      direccion: proveedor.direccion,
+      estado: proveedor.estado,
+    }, ['email']);
     this.mostrarToast(`Editando proveedor ${proveedor.razonSocial}.`, 'success');
   }
 
@@ -206,6 +243,7 @@ export class Proveedores {
     this.mensaje = '';
     this.errorRuc = '';
     this.editandoId = null;
+    this.proveedorSnapshotOriginal = null;
     this.proveedorForm.reset({
       razonSocial: '',
       ruc: '',
@@ -216,33 +254,26 @@ export class Proveedores {
     });
   }
 
-  cambiarEstadoProveedor(proveedor: ProveedorResponse): void {
-    if (proveedor.estado === 'ACTIVO') {
-      this.proveedoresService.inactivar(proveedor.id).subscribe({
-        next: () => {
-          this.mostrarToast('Proveedor desactivado correctamente.', 'success');
-          this.cargarProveedores();
-        },
-        error: (error: unknown) => {
-          this.mostrarToast(getApiErrorMessage(error), 'error');
-        },
-      });
-      return;
-    }
+  async cambiarEstadoProveedor(proveedor: ProveedorResponse): Promise<void> {
+    const accion = proveedor.estado === 'ACTIVO' ? 'desactivar' : 'activar';
+    const confirmado = await this.confirmacion.confirmar({
+      titulo: `${accion === 'desactivar' ? 'Desactivar' : 'Activar'} proveedor`,
+      mensaje: `Se va a ${accion} el proveedor ${proveedor.razonSocial}.`,
+      textoConfirmar: accion === 'desactivar' ? 'Desactivar' : 'Activar',
+      tono: accion === 'desactivar' ? 'danger' : 'normal',
+    });
+    if (!confirmado) return;
 
     this.proveedoresService
-      .actualizar(proveedor.id, {
-        razonSocial: proveedor.razonSocial,
-        ruc: proveedor.ruc,
-        celular: proveedor.celular ?? null,
-        telefono: proveedor.telefono ?? null,
-        email: proveedor.email ?? null,
-        direccion: proveedor.direccion,
-        estado: 'ACTIVO',
-      })
+      .actualizarEstado(proveedor.id, proveedor.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO')
       .subscribe({
         next: () => {
-          this.mostrarToast('Proveedor activado correctamente.', 'success');
+          this.mostrarToast(
+            proveedor.estado === 'ACTIVO'
+              ? 'Proveedor desactivado correctamente.'
+              : 'Proveedor activado correctamente.',
+            'success'
+          );
           this.cargarProveedores();
         },
         error: (error: unknown) => {
@@ -284,12 +315,6 @@ export class Proveedores {
     return status === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
   }
 
-  toastClass(): string {
-    return this.toastType === 'success'
-      ? 'border-green-200 bg-green-50 text-green-800'
-      : 'border-red-200 bg-red-50 text-red-800';
-  }
-
   fieldError(controlName: keyof typeof this.proveedorForm.controls): string {
     const control = this.proveedorForm.controls[controlName];
     if (!control.touched || !control.errors) return '';
@@ -307,15 +332,12 @@ export class Proveedores {
     return 'Revise este campo.';
   }
 
-  private mostrarToast(message: string, type: ToastType): void {
-    this.toastMessage = message;
-    this.toastType = type;
-
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => {
-      this.toastMessage = '';
-      this.toastTimer = null;
-    }, 3500);
+  private mostrarToast(message: string, type: 'success' | 'error'): void {
+    if (type === 'success') {
+      this.notificacion.success(message);
+      return;
+    }
+    this.notificacion.error(message);
   }
 
   private normalizarTexto(value: string): string {
@@ -330,5 +352,15 @@ export class Proveedores {
   private normalizarEmailOpcional(value: string): string | null {
     const email = value.trim().toLowerCase().replace(/\s+/g, '');
     return email ? email : null;
+  }
+
+  private exportarProveedores(tipo: 'excel' | 'pdf'): void {
+    this.proveedoresService.exportar(tipo, this.filtrosProveedor).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('proveedores', tipo));
+        this.notificacion.success(`Proveedores exportados a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }

@@ -7,6 +7,38 @@ type FechaCreacion = {
 
 export type FiltroTodos<T extends string> = T | 'TODOS';
 export const TAMANO_MAXIMO_PAGINA = 100;
+export const TIEMPO_DEBOUNCE_BUSQUEDA_MS = 400;
+
+export interface AccionDebounced {
+  schedule(): void;
+  destroy(): void;
+}
+
+export function crearAccionDebounced(
+  action: () => void,
+  delayMs = TIEMPO_DEBOUNCE_BUSQUEDA_MS
+): AccionDebounced {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const clear = (): void => {
+    if (timeoutId === null) return;
+    clearTimeout(timeoutId);
+    timeoutId = null;
+  };
+
+  return {
+    schedule(): void {
+      clear();
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        action();
+      }, delayMs);
+    },
+    destroy(): void {
+      clear();
+    },
+  };
+}
 
 export function listarTodasLasPaginas<T>(
   cargarPagina: (page: number, size: number) => Observable<PaginaResponse<T>>,
@@ -21,6 +53,13 @@ export function listarTodasLasPaginas<T>(
 
 export function ordenarPorCreacionDesc<T extends FechaCreacion>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => fechaEnMs(b.creadoEn) - fechaEnMs(a.creadoEn));
+}
+
+export function paginarLocal<T>(items: readonly T[], page: number, size: number): T[] {
+  const paginaSegura = Math.max(0, page);
+  const tamanoSeguro = Math.max(1, size);
+  const inicio = paginaSegura * tamanoSeguro;
+  return items.slice(inicio, inicio + tamanoSeguro);
 }
 
 export function buscarEnCampos<T extends object>(

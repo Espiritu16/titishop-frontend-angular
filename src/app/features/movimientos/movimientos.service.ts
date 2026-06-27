@@ -29,6 +29,18 @@ export class MovimientosService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    tipo?: TipoMovimiento | 'TODOS';
+    anulado?: boolean;
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/movimientos/${formato}`, {
+      busqueda: params?.busqueda,
+      tipo: params?.tipo === 'TODOS' ? undefined : params?.tipo,
+      anulado: params?.anulado,
+    });
+  }
+
   registrar(request: RegistrarMovimientoRequest): Observable<MovimientoResponse> {
     return this.api.post<MovimientoResponse, RegistrarMovimientoRequest>('/movimientos', request);
   }

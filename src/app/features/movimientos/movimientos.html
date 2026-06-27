@@ -7,21 +7,27 @@
 </header>
 
 <main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
-  <div class="flex items-center justify-between mb-5">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-800">Movimientos</h1>
       <p class="text-sm text-gray-400 mt-0.5">Registro de entradas, salidas y ajustes</p>
     </div>
-    <button type="button" (click)="abrirModal()" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-      <i class="bi bi-plus-lg"></i>
-      <span class="hidden sm:inline">Nuevo movimiento</span>
-      <span class="sm:hidden">Nuevo</span>
-    </button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <button type="button" (click)="exportarMovimientosExcel()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        <span>Excel</span>
+      </button>
+      <button type="button" (click)="exportarMovimientosPdf()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i>
+        <span>PDF</span>
+      </button>
+      <button type="button" (click)="abrirModal()" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-plus-lg"></i>
+        <span class="hidden sm:inline">Nuevo movimiento</span>
+        <span class="sm:hidden">Nuevo</span>
+      </button>
+    </div>
   </div>
-
-  @if (mensaje) {
-    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{{ mensaje }}</div>
-  }
 
   @if (estadoListado === 'cargando') {
     <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando movimientos...</div>
@@ -33,7 +39,7 @@
         <label class="relative block">
           <span class="sr-only">Buscar movimientos</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-          <input type="search" [(ngModel)]="filtrosMovimiento.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaMovimientos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por producto, SKU, proveedor, motivo o usuario">
+          <input type="search" [(ngModel)]="filtrosMovimiento.busqueda" (ngModelChange)="onBusquedaChange()" name="busquedaMovimientos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por producto, SKU, proveedor, motivo o usuario">
         </label>
         <label>
           <span class="sr-only">Filtrar movimientos por tipo</span>
@@ -58,9 +64,16 @@
           @for (movimiento of movimientos; track movimiento.id) {
             <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm" [class.opacity-60]="estaAnulado(movimiento)">
               <div class="mb-3 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="truncate text-base font-semibold text-gray-800">{{ movimiento.productoNombre }}</h2>
-                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                <div class="flex min-w-0 items-center gap-3">
+                  @if (productoImagen(movimiento)) {
+                    <img [src]="productoImagen(movimiento)" (error)="onImagenProductoError(movimiento)" [alt]="movimiento.productoNombre" class="h-11 w-11 shrink-0 rounded-lg object-cover">
+                  } @else {
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                  }
+                  <div class="min-w-0">
+                    <h2 class="truncate text-base font-semibold text-gray-800" [title]="productoDescripcion(movimiento)">{{ movimiento.productoNombre }}</h2>
+                    <p class="mt-0.5 font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                  </div>
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
               </div>
@@ -84,8 +97,8 @@
               </dl>
               <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
                 <span class="truncate text-xs text-gray-400">{{ movimiento.creadoPorNombre }}</span>
-                <button type="button" (click)="anularMovimiento(movimiento)" [disabled]="estaAnulado(movimiento)" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors" aria-label="Anular movimiento">
-                  <i class="bi bi-x-circle text-sm text-gray-500"></i>
+                <button type="button" (click)="anularMovimiento(movimiento)" [disabled]="estaAnulado(movimiento)" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors" aria-label="Anular movimiento" title="Anular movimiento">
+                  <i class="bi bi-slash-circle text-sm text-gray-500"></i>
                 </button>
               </div>
             </article>
@@ -112,7 +125,16 @@
             @for (movimiento of movimientos; track movimiento.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors" [class.opacity-50]="estaAnulado(movimiento)">
                 <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span></td>
-                <td class="px-4 py-3 font-medium text-gray-800">{{ movimiento.productoNombre }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    @if (productoImagen(movimiento)) {
+                      <img [src]="productoImagen(movimiento)" (error)="onImagenProductoError(movimiento)" [alt]="movimiento.productoNombre" class="h-9 w-9 shrink-0 rounded-lg object-cover">
+                    } @else {
+                      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                    }
+                    <span class="font-medium text-gray-800" [title]="productoDescripcion(movimiento)">{{ movimiento.productoNombre }}</span>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{{ movimiento.productoSku }}</td>
                 <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ movimiento.proveedorRazonSocial || '-' }}</td>
                 <td class="px-4 py-3 font-semibold text-gray-800">{{ movimiento.cantidad }}</td>
@@ -120,8 +142,8 @@
                 <td class="px-4 py-3 text-gray-600 hidden sm:table-cell">{{ movimiento.creadoPorNombre }}</td>
                 <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{{ movimiento.creadoEn | date:'dd/MM/yy' }}</td>
                 <td class="px-4 py-3">
-                  <button type="button" (click)="anularMovimiento(movimiento)" [disabled]="estaAnulado(movimiento)" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors" aria-label="Anular movimiento">
-                    <i class="bi bi-x-circle text-sm text-gray-500 hover:text-red-500"></i>
+                  <button type="button" (click)="anularMovimiento(movimiento)" [disabled]="estaAnulado(movimiento)" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors" aria-label="Anular movimiento" title="Anular movimiento">
+                    <i class="bi bi-slash-circle text-sm text-gray-500 hover:text-red-500"></i>
                   </button>
                 </td>
               </tr>
@@ -212,11 +234,14 @@
                       (click)="seleccionarProducto(producto)"
                       class="producto-selector__option"
                       [class.producto-selector__option--selected]="productoSeleccionadoEs(producto.id)">
-                      <span class="producto-selector__name">{{ producto.nombre }}</span>
+                      <span class="min-w-0">
+                        <span class="producto-selector__name">{{ producto.nombre }}</span>
+                        <span class="producto-selector__stock">Stock: {{ inventariosPorProducto(producto.id)?.stockActual ?? 0 }}</span>
+                      </span>
                       <span class="producto-selector__sku">{{ producto.sku }}</span>
                     </button>
                   } @empty {
-                    <div class="producto-selector__empty">No se encontraron productos.</div>
+                    <div class="producto-selector__empty">No se encontraron productos con inventario activo.</div>
                   }
                 </div>
               }
@@ -226,15 +251,66 @@
               }
             </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Cantidad *</label>
-            <input type="number" formControlName="cantidad" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" min="1">
-          </div>
-          @if (movimientoForm.controls.tipo.value === 'AJUSTE') {
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Stock destino *</label>
-              <input type="number" formControlName="stockDestino" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" min="0">
+          <div class="sm:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+              <span class="block text-xs font-medium text-gray-400">Stock actual</span>
+              <strong class="text-lg font-bold text-gray-800">{{ stockActualSeleccionado ?? '-' }}</strong>
             </div>
+            @if (movimientoForm.controls.tipo.value === 'AJUSTE') {
+              <div class="rounded-lg border px-3 py-2.5"
+                [class.border-gray-200]="!valorMovimientoFueraDeRango"
+                [class.bg-gray-50]="!valorMovimientoFueraDeRango"
+                [class.border-red-200]="valorMovimientoFueraDeRango"
+                [class.bg-red-50]="valorMovimientoFueraDeRango">
+                <label for="stockDestinoMovimiento" class="block text-xs font-medium text-gray-400">Stock destino *</label>
+                <input
+                  id="stockDestinoMovimiento"
+                  type="number"
+                  formControlName="stockDestino"
+                  (keydown)="bloquearTeclasNumeroInvalido($event)"
+                  class="movimiento-card-input"
+                  min="1"
+                  [attr.max]="valorMaximoMovimiento">
+              </div>
+            } @else {
+              <div class="rounded-lg border px-3 py-2.5"
+                [class.border-gray-200]="!valorMovimientoFueraDeRango && !salidaExcedeStock"
+                [class.bg-gray-50]="!valorMovimientoFueraDeRango && !salidaExcedeStock"
+                [class.border-red-200]="valorMovimientoFueraDeRango || salidaExcedeStock"
+                [class.bg-red-50]="valorMovimientoFueraDeRango || salidaExcedeStock">
+                <label for="cantidadMovimiento" class="block text-xs font-medium text-gray-400">Cantidad *</label>
+                <input
+                  id="cantidadMovimiento"
+                  type="number"
+                  formControlName="cantidad"
+                  (keydown)="bloquearTeclasNumeroInvalido($event)"
+                  class="movimiento-card-input"
+                  min="1"
+                  [attr.max]="valorMaximoMovimiento">
+              </div>
+            }
+            <div class="rounded-lg border px-3 py-2.5"
+              [class.border-gray-200]="!salidaExcedeStock && !ajusteSinCambio && !valorMovimientoFueraDeRango"
+              [class.bg-gray-50]="!salidaExcedeStock && !ajusteSinCambio && !valorMovimientoFueraDeRango"
+              [class.border-red-200]="salidaExcedeStock || ajusteSinCambio || valorMovimientoFueraDeRango"
+              [class.bg-red-50]="salidaExcedeStock || ajusteSinCambio || valorMovimientoFueraDeRango">
+              <span class="block text-xs font-medium text-gray-400">Stock final</span>
+              <strong class="text-lg font-bold" [class.text-gray-800]="!salidaExcedeStock && !ajusteSinCambio && !valorMovimientoFueraDeRango" [class.text-red-600]="salidaExcedeStock || ajusteSinCambio || valorMovimientoFueraDeRango">
+                {{ stockFinalProyectado ?? '-' }}
+              </strong>
+            </div>
+          </div>
+          @if (valorMovimientoFueraDeRango) {
+            <p class="sm:col-span-2 text-xs text-red-500">Ingresa un valor entre 1 y {{ valorMaximoMovimiento }}.</p>
+          }
+          @if (salidaExcedeStock) {
+            <p class="sm:col-span-2 text-xs text-red-500">La salida no puede superar el stock actual.</p>
+          }
+          @if (ajusteSinCambio) {
+            <p class="sm:col-span-2 text-xs text-red-500">El ajuste debe cambiar el stock actual.</p>
+          }
+          @if (movimientoForm.controls.tipo.value === 'AJUSTE') {
+            <p class="sm:col-span-2 text-xs text-gray-400">Diferencia proyectada: {{ diferenciaAjuste ?? '-' }}</p>
           }
           @if (movimientoForm.controls.tipo.value === 'ENTRADA') {
             <div class="sm:col-span-2">
@@ -251,9 +327,6 @@
             <label class="block text-sm font-medium text-gray-600 mb-1">Motivo *</label>
             <input type="text" formControlName="motivo" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Descripción del movimiento">
           </div>
-          @if (mensaje) {
-            <p class="sm:col-span-2 text-xs text-red-500">{{ mensaje }}</p>
-          }
         </div>
         <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
           <button type="submit" [disabled]="!puedeGuardar" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">Registrar</button>

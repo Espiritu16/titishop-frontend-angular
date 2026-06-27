@@ -1,17 +1,22 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
+import { nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { ColumnaExportacion, ExportacionSinDatosError, exportarExcel, exportarPdf } from '../../core/exportacion';
+import { AccionDebounced, crearAccionDebounced, paginarLocal } from '../../core/listado-utils';
 import {
   EstadoInventario,
   ReporteMovimientosResponse,
   ReporteStockCriticoResponse,
   ReporteStockResponse,
+  ReporteValorizacionItemResponse,
   ReporteValorizacionResponse,
   TipoMovimiento,
 } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { ReportesService } from './reportes.service';
 
 type PestanaReporte = 'movimientos' | 'stock' | 'critico' | 'valorizacion';
@@ -23,7 +28,8 @@ type PestanaReporte = 'movimientos' | 'stock' | 'critico' | 'valorizacion';
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
 })
-export class Reportes {
+export class Reportes implements OnDestroy {
+  readonly pageSize = 10;
   pestanaActiva: PestanaReporte = 'movimientos';
   estado: EstadoCarga = 'inicial';
   error = '';
@@ -35,13 +41,20 @@ export class Reportes {
   stock: ReporteStockResponse[] = [];
   stockCritico: ReporteStockCriticoResponse[] = [];
   valorizacion: ReporteValorizacionResponse | null = null;
+  paginaMovimientos = 0;
+  paginaStock = 0;
+  paginaCritico = 0;
+  paginaValorizacion = 0;
 
   readonly filtrosMovimientos;
   readonly filtrosStock;
+  private suspendiendoFiltros = false;
+  private readonly busquedaStockDebounced: AccionDebounced = crearAccionDebounced(() => this.aplicarFiltrosStock());
 
   constructor(
     private fb: FormBuilder,
-    private reportesService: ReportesService
+    private reportesService: ReportesService,
+    private notificacion: NotificacionService
   ) {
     this.filtrosMovimientos = this.fb.nonNullable.group({
       fechaInicio: [''],
@@ -52,6 +65,15 @@ export class Reportes {
     this.filtrosStock = this.fb.nonNullable.group({
       estado: ['TODOS' as EstadoInventario | 'TODOS'],
       busqueda: [''],
+    });
+    this.filtrosMovimientos.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.aplicarFiltrosMovimientos();
+    });
+    this.filtrosStock.controls.estado.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.aplicarFiltrosStock();
+    });
+    this.filtrosStock.controls.busqueda.valueChanges.subscribe(() => {
+      if (!this.suspendiendoFiltros) this.busquedaStockDebounced.schedule();
     });
     this.cargarReportes();
   }
@@ -74,6 +96,35 @@ export class Reportes {
       .reduce((total, movimiento) => total + movimiento.cantidad, 0);
   }
 
+  get movimientosPaginados(): ReporteMovimientosResponse[] {
+    return paginarLocal(this.movimientos, this.paginaMovimientos, this.pageSize);
+  }
+
+  get stockPaginado(): ReporteStockResponse[] {
+    return paginarLocal(this.stock, this.paginaStock, this.pageSize);
+  }
+
+  get stockCriticoPaginado(): ReporteStockCriticoResponse[] {
+    return paginarLocal(this.stockCritico, this.paginaCritico, this.pageSize);
+  }
+
+  get valorizacionItems(): NonNullable<ReporteValorizacionResponse['items']> {
+    return this.valorizacion?.items ?? [];
+  }
+
+  get valorizacionPaginada(): NonNullable<ReporteValorizacionResponse['items']> {
+    return paginarLocal(this.valorizacionItems, this.paginaValorizacion, this.pageSize);
+  }
+
+  totalPaginas(total: number): number {
+    return Math.ceil(total / this.pageSize);
+  }
+
+  textoPagina(page: number, total: number): string {
+    const totalPaginas = this.totalPaginas(total);
+    return `Página ${totalPaginas === 0 ? 0 : page + 1} de ${totalPaginas}`;
+  }
+
   cargarReportes(): void {
     this.estado = 'cargando';
     this.error = '';
@@ -89,6 +140,7 @@ export class Reportes {
         this.stock = stock;
         this.stockCritico = stockCritico;
         this.valorizacion = valorizacion;
+        this.resetearPaginas();
         this.estado = 'exito';
       },
       error: (error: unknown) => {
@@ -100,6 +152,7 @@ export class Reportes {
 
   aplicarFiltrosMovimientos(): void {
     this.estado = 'cargando';
+    this.paginaMovimientos = 0;
     this.reportesService.movimientos(this.filtrosMovimientoRequest()).subscribe({
       next: (movimientos) => {
         this.movimientos = movimientos;
@@ -114,6 +167,7 @@ export class Reportes {
 
   aplicarFiltrosStock(): void {
     this.estado = 'cargando';
+    this.paginaStock = 0;
     this.reportesService.stock(this.filtrosStockRequest()).subscribe({
       next: (stock) => {
         this.stock = stock;
@@ -127,21 +181,37 @@ export class Reportes {
   }
 
   limpiarFiltrosMovimientos(): void {
+    this.suspendiendoFiltros = true;
     this.filtrosMovimientos.reset({
       fechaInicio: '',
       fechaFin: '',
       tipo: 'TODOS',
       incluirAnulados: false,
     });
+    this.suspendiendoFiltros = false;
     this.aplicarFiltrosMovimientos();
   }
 
   limpiarFiltrosStock(): void {
+    this.suspendiendoFiltros = true;
     this.filtrosStock.reset({
       estado: 'TODOS',
       busqueda: '',
     });
+    this.suspendiendoFiltros = false;
     this.aplicarFiltrosStock();
+  }
+
+  exportarReporteExcel(): void {
+    this.exportarReporte('excel');
+  }
+
+  exportarReportePdf(): void {
+    this.exportarReporte('pdf');
+  }
+
+  ngOnDestroy(): void {
+    this.busquedaStockDebounced.destroy();
   }
 
   movimientoClase(tipo: TipoMovimiento): string {
@@ -152,6 +222,22 @@ export class Reportes {
 
   stockClase(item: ReporteStockResponse): string {
     return item.stockCritico ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+  }
+
+  irAPaginaMovimientos(page: number): void {
+    if (this.paginaValida(page, this.movimientos.length)) this.paginaMovimientos = page;
+  }
+
+  irAPaginaStock(page: number): void {
+    if (this.paginaValida(page, this.stock.length)) this.paginaStock = page;
+  }
+
+  irAPaginaCritico(page: number): void {
+    if (this.paginaValida(page, this.stockCritico.length)) this.paginaCritico = page;
+  }
+
+  irAPaginaValorizacion(page: number): void {
+    if (this.paginaValida(page, this.valorizacionItems.length)) this.paginaValorizacion = page;
   }
 
   private filtrosMovimientoRequest() {
@@ -170,5 +256,106 @@ export class Reportes {
       estado: filtros.estado === 'TODOS' ? null : filtros.estado,
       busqueda: filtros.busqueda.trim() || null,
     };
+  }
+
+  private paginaValida(page: number, total: number): boolean {
+    return page >= 0 && page < this.totalPaginas(total);
+  }
+
+  private resetearPaginas(): void {
+    this.paginaMovimientos = 0;
+    this.paginaStock = 0;
+    this.paginaCritico = 0;
+    this.paginaValorizacion = 0;
+  }
+
+  private exportarReporte(tipo: 'excel' | 'pdf'): void {
+    try {
+      const { titulo, modulo, items, columnas } = this.configuracionExportacion();
+      const archivo = nombreArchivoExportacion(modulo, tipo).replace(/\.(xls|pdf)$/i, '');
+      if (tipo === 'excel') exportarExcel(titulo, archivo, items, columnas);
+      else exportarPdf(titulo, archivo, items, columnas);
+      this.notificacion.success(`${titulo} exportado a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+    } catch (error) {
+      if (error instanceof ExportacionSinDatosError) this.notificacion.info(error.message);
+      else this.notificacion.error('No se pudo exportar el reporte.');
+    }
+  }
+
+  private configuracionExportacion(): {
+    titulo: string;
+    modulo: string;
+    items: readonly object[];
+    columnas: readonly ColumnaExportacion<object>[];
+  } {
+    if (this.pestanaActiva === 'movimientos') {
+      return {
+        titulo: 'Reporte de movimientos',
+        modulo: 'reporte movimientos',
+        items: this.movimientos,
+        columnas: [
+          { encabezado: 'Fecha', valor: (item) => (item as ReporteMovimientosResponse).fecha },
+          { encabezado: 'Producto', valor: (item) => (item as ReporteMovimientosResponse).productoNombre },
+          { encabezado: 'SKU', valor: (item) => (item as ReporteMovimientosResponse).productoSku },
+          { encabezado: 'Tipo', valor: (item) => (item as ReporteMovimientosResponse).tipo },
+          { encabezado: 'Cantidad', valor: (item) => (item as ReporteMovimientosResponse).cantidad },
+          { encabezado: 'Stock antes', valor: (item) => (item as ReporteMovimientosResponse).stockAntes },
+          { encabezado: 'Stock despues', valor: (item) => (item as ReporteMovimientosResponse).stockDespues },
+          { encabezado: 'Usuario', valor: (item) => (item as ReporteMovimientosResponse).creadoPorNombre },
+          { encabezado: 'Estado', valor: (item) => ((item as ReporteMovimientosResponse).anulado ? 'ANULADO' : 'VIGENTE') },
+        ],
+      };
+    }
+    if (this.pestanaActiva === 'stock') {
+      return {
+        titulo: 'Reporte de stock',
+        modulo: 'reporte stock',
+        items: this.stock,
+        columnas: this.columnasStock(),
+      };
+    }
+    if (this.pestanaActiva === 'critico') {
+      return {
+        titulo: 'Reporte de stock critico',
+        modulo: 'reporte stock critico',
+        items: this.stockCritico,
+        columnas: [
+          { encabezado: 'Producto', valor: (item) => (item as ReporteStockCriticoResponse).productoNombre },
+          { encabezado: 'SKU', valor: (item) => (item as ReporteStockCriticoResponse).productoSku },
+          { encabezado: 'Stock actual', valor: (item) => (item as ReporteStockCriticoResponse).stockActual },
+          { encabezado: 'Stock minimo', valor: (item) => (item as ReporteStockCriticoResponse).stockMinimo },
+          { encabezado: 'Cantidad sugerida', valor: (item) => (item as ReporteStockCriticoResponse).cantidadSugerida },
+          { encabezado: 'Ubicacion', valor: (item) => (item as ReporteStockCriticoResponse).ubicacion },
+        ],
+      };
+    }
+    return {
+      titulo: 'Reporte de valorizacion',
+      modulo: 'reporte valorizacion',
+      items: this.valorizacionItems,
+      columnas: [
+        { encabezado: 'Producto', valor: (item) => (item as ReporteValorizacionItemResponse).productoNombre },
+        { encabezado: 'SKU', valor: (item) => (item as ReporteValorizacionItemResponse).productoSku },
+        { encabezado: 'Stock', valor: (item) => (item as ReporteValorizacionItemResponse).stockActual },
+        { encabezado: 'Compra', valor: (item) => (item as ReporteValorizacionItemResponse).precioCompra },
+        { encabezado: 'Venta', valor: (item) => (item as ReporteValorizacionItemResponse).precioVenta },
+        { encabezado: 'Valor costo', valor: (item) => (item as ReporteValorizacionItemResponse).valorCosto },
+        { encabezado: 'Valor venta', valor: (item) => (item as ReporteValorizacionItemResponse).valorVenta },
+        { encabezado: 'Margen', valor: (item) => (item as ReporteValorizacionItemResponse).margenEstimado },
+      ],
+    };
+  }
+
+  private columnasStock(): readonly ColumnaExportacion<object>[] {
+    return [
+      { encabezado: 'Producto', valor: (item) => (item as ReporteStockResponse).productoNombre },
+      { encabezado: 'SKU', valor: (item) => (item as ReporteStockResponse).productoSku },
+      { encabezado: 'Categoria', valor: (item) => (item as ReporteStockResponse).categoriaNombre },
+      { encabezado: 'Marca', valor: (item) => (item as ReporteStockResponse).marcaNombre },
+      { encabezado: 'Stock actual', valor: (item) => (item as ReporteStockResponse).stockActual },
+      { encabezado: 'Stock minimo', valor: (item) => (item as ReporteStockResponse).stockMinimo },
+      { encabezado: 'Ubicacion', valor: (item) => (item as ReporteStockResponse).ubicacion },
+      { encabezado: 'Estado', valor: (item) => (item as ReporteStockResponse).estado },
+    ];
   }
 }

@@ -1,30 +1,143 @@
 <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shrink-0">
-  <div class="hidden lg:flex items-center gap-2 text-sm text-gray-400">
+  <div class="flex items-center gap-2 text-sm text-gray-400">
     <i class="bi bi-house"></i>
     <i class="bi bi-chevron-right text-xs"></i>
     <span class="text-gray-700 font-medium">Configuración</span>
   </div>
-  <div class="lg:hidden text-sm font-semibold text-gray-800">Configuración</div>
 </header>
-<main class="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
-  <div class="mb-5">
-    <h1 class="text-xl font-bold text-gray-800">Configuración</h1>
-    <p class="text-sm text-gray-400 mt-0.5">Opciones del sistema</p>
+
+<main class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-gray-800">Configuración</h1>
+      <p class="mt-0.5 text-sm text-gray-400">Preferencias, sesión y estado operativo</p>
+    </div>
+    <button type="button" (click)="verificarApi()" [disabled]="estadoApi === 'cargando'" class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60">
+      <i class="bi bi-arrow-clockwise" [class.animate-spin]="estadoApi === 'cargando'"></i>
+      <span>Verificar API</span>
+    </button>
   </div>
-  <div class="max-w-md w-full">
-    <div class="bg-white rounded-xl border border-red-100 p-4 sm:p-5">
-      <div class="flex items-start gap-3 mb-4">
-        <div class="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
-          <i class="bi bi-exclamation-triangle text-red-400"></i>
-        </div>
+
+  <div class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+    <section class="rounded-xl border border-gray-200 bg-white p-5">
+      <div class="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 class="text-sm font-semibold text-gray-800">Restablecer sistema</h2>
-          <p class="text-sm text-gray-400 mt-1 leading-relaxed">Esta acción eliminará todos los datos locales y no puede deshacerse.</p>
+          <h2 class="text-base font-semibold text-gray-800">Preferencias de interfaz</h2>
+          <p class="mt-1 text-sm text-gray-400">Ajustes visibles para la sesión actual.</p>
+        </div>
+        <div class="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
+          <i class="bi bi-sliders"></i>
         </div>
       </div>
-      <button class="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
-        Limpiar datos del sistema
-      </button>
-    </div>
+
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+          <span class="text-xs font-semibold uppercase text-gray-400">Modo actual</span>
+          <p class="mt-2 text-2xl font-bold text-gray-800">{{ temaActual }}</p>
+          <p class="mt-1 text-sm text-gray-500">Se aplica a toda la interfaz.</p>
+        </div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+          <span class="text-xs font-semibold uppercase text-gray-400">Control rápido</span>
+          <button type="button" (click)="cambiarTema()" class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-600">
+            <i class="bi" [class.bi-sun-fill]="theme.isDark" [class.bi-moon-stars-fill]="!theme.isDark"></i>
+            <span>{{ theme.isDark ? 'Cambiar a claro' : 'Cambiar a oscuro' }}</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-5">
+      <div class="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-gray-800">Usuario conectado</h2>
+          <p class="mt-1 text-sm text-gray-400">Datos de la sesión activa.</p>
+        </div>
+        <div class="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600">
+          <i class="bi bi-person-badge"></i>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+          <span class="text-gray-400">Nombre</span>
+          <strong class="truncate text-gray-800">{{ usuarioActual?.fullName ?? 'Usuario' }}</strong>
+        </div>
+        <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+          <span class="text-gray-400">Rol</span>
+          <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{{ usuarioActual?.role ?? '-' }}</span>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-gray-400">Correo</span>
+          <strong class="truncate text-gray-800">{{ usuarioActual?.email ?? '-' }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-5 xl:col-span-2">
+      <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-gray-800">Estado del sistema</h2>
+          <p class="mt-1 text-sm text-gray-400">Verificación de conectividad entre frontend y backend.</p>
+        </div>
+        <span
+          class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+          [class.bg-green-100]="estadoApi === 'exito'"
+          [class.text-green-700]="estadoApi === 'exito'"
+          [class.bg-amber-100]="estadoApi === 'cargando' || estadoApi === 'inicial'"
+          [class.text-amber-700]="estadoApi === 'cargando' || estadoApi === 'inicial'"
+          [class.bg-red-100]="estadoApi === 'error'"
+          [class.text-red-700]="estadoApi === 'error'"
+        >
+          <span class="h-2 w-2 rounded-full" [class.bg-green-500]="estadoApi === 'exito'" [class.bg-amber-500]="estadoApi === 'cargando' || estadoApi === 'inicial'" [class.bg-red-500]="estadoApi === 'error'"></span>
+          {{ estadoApi === 'exito' ? 'API disponible' : estadoApi === 'error' ? 'API no disponible' : 'Verificando API' }}
+        </span>
+      </div>
+
+      <div class="grid gap-3 md:grid-cols-3">
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+          <span class="text-xs font-semibold uppercase text-gray-400">Sistema</span>
+          <p class="mt-2 text-xl font-bold text-gray-800">{{ nombreSistema }}</p>
+          <p class="mt-1 text-sm text-gray-500">Versión {{ versionSistema }}</p>
+        </div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+          <span class="text-xs font-semibold uppercase text-gray-400">Última verificación</span>
+          <p class="mt-2 text-xl font-bold text-gray-800">{{ ultimaVerificacion ? (ultimaVerificacion | date:'dd/MM/yy HH:mm:ss') : '-' }}</p>
+          <p class="mt-1 text-sm text-gray-500">Hora local del navegador.</p>
+        </div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+          <span class="text-xs font-semibold uppercase text-gray-400">Backend</span>
+          <p class="mt-2 text-xl font-bold" [class.text-green-700]="estadoApi === 'exito'" [class.text-red-700]="estadoApi === 'error'" [class.text-gray-800]="estadoApi !== 'exito' && estadoApi !== 'error'">
+            {{ estadoApi === 'exito' ? 'Operativo' : estadoApi === 'error' ? 'Con error' : 'Pendiente' }}
+          </p>
+          <p class="mt-1 text-sm text-gray-500">{{ errorApi || 'Endpoint de panel responde correctamente.' }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-gray-200 bg-white p-5 xl:col-span-2">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-start gap-3">
+          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+            <i class="bi bi-braces"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-gray-800">Documentación API</h2>
+            <p class="mt-1 text-sm leading-6 text-gray-500">
+              Abre Swagger para revisar y probar los endpoints REST del backend.
+            </p>
+          </div>
+        </div>
+        <a
+          [href]="swaggerUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+          aria-label="Abrir Swagger en una nueva ventana"
+        >
+          <i class="bi bi-box-arrow-up-right"></i>
+          <span>Abrir Swagger</span>
+        </a>
+      </div>
+    </section>
   </div>
 </main>

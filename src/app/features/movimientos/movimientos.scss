@@ -98,3 +98,26 @@
   color: #6b7280;
   font-size: 0.875rem;
 }
+
+.movimiento-card-input {
+  margin-top: 0.125rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #1f2937;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.75rem;
+  outline: 0;
+}
+
+.movimiento-card-input::-webkit-outer-spin-button,
+.movimiento-card-input::-webkit-inner-spin-button {
+  margin: 0;
+}
+
+:host-context(.dark-theme) .movimiento-card-input {
+  background: transparent !important;
+  color: #f9fafb;
+}

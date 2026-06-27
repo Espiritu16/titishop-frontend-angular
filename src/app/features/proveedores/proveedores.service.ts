@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import {
   ActualizarProveedorRequest,
+  ActualizarEstadoProveedorRequest,
   ConsultaRucProveedorResponse,
   CrearProveedorRequest,
   EstadoProveedor,
@@ -28,6 +29,16 @@ export class ProveedoresService {
     });
   }
 
+  exportar(formato: 'excel' | 'pdf', params?: {
+    busqueda?: string;
+    estado?: EstadoProveedor | 'TODOS';
+  }): Observable<Blob> {
+    return this.api.getBlob(`/exportaciones/proveedores/${formato}`, {
+      busqueda: params?.busqueda,
+      estado: params?.estado === 'TODOS' ? undefined : params?.estado,
+    });
+  }
+
   consultarRuc(ruc: string): Observable<ConsultaRucProveedorResponse> {
     return this.api.get<ConsultaRucProveedorResponse>(`/proveedores/consulta-ruc/${ruc}`);
   }
@@ -40,7 +51,11 @@ export class ProveedoresService {
     return this.api.put<ProveedorResponse, ActualizarProveedorRequest>(`/proveedores/${id}`, request);
   }
 
+  actualizarEstado(id: string, estado: EstadoProveedor): Observable<ProveedorResponse> {
+    return this.api.patch<ProveedorResponse, ActualizarEstadoProveedorRequest>(`/proveedores/${id}/estado`, { estado });
+  }
+
   inactivar(id: string): Observable<void> {
-    return this.api.delete<void>(`/proveedores/${id}`);
+    return this.api.patch<void, ActualizarEstadoProveedorRequest>(`/proveedores/${id}/estado`, { estado: 'INACTIVO' });
   }
 }

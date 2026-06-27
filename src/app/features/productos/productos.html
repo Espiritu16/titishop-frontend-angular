@@ -13,6 +13,14 @@
       <p class="text-sm text-gray-400 mt-0.5">Gestión del catálogo de productos</p>
     </div>
     <div class="flex flex-col sm:flex-row gap-2">
+      <button type="button" (click)="exportarProductosExcel()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        <span>Excel</span>
+      </button>
+      <button type="button" (click)="exportarProductosPdf()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i>
+        <span>PDF</span>
+      </button>
       <button type="button" (click)="abrirModalCategorias()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
         <i class="bi bi-tags"></i>
         <span>Administrar categorías</span>
@@ -29,10 +37,6 @@
     </div>
   </div>
 
-  @if (mensaje) {
-    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{{ mensaje }}</div>
-  }
-
   @if (estadoListado === 'cargando') {
     <div class="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Cargando productos...</div>
   } @else if (estadoListado === 'error') {
@@ -43,7 +47,7 @@
         <label class="relative block">
           <span class="sr-only">Buscar productos</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-          <input type="search" [(ngModel)]="filtrosProducto.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaProductos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, SKU, categoría o marca">
+          <input type="search" [(ngModel)]="filtrosProducto.busqueda" (ngModelChange)="onBusquedaChange()" name="busquedaProductos" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, SKU, categoría o marca">
         </label>
         <label>
           <span class="sr-only">Filtrar productos por estado</span>
@@ -78,9 +82,16 @@
           @for (producto of productos; track producto.id) {
             <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
               <div class="mb-3 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="truncate text-base font-semibold text-gray-800">{{ producto.nombre }}</h2>
-                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ producto.sku }}</p>
+                <div class="flex min-w-0 items-center gap-3">
+                  @if (imagenProducto(producto)) {
+                    <img [src]="imagenProducto(producto)" (error)="onImagenProductoError(producto)" [alt]="producto.nombre" class="h-11 w-11 shrink-0 rounded-lg object-cover">
+                  } @else {
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                  }
+                  <div class="min-w-0">
+                    <h2 class="truncate text-base font-semibold text-gray-800" [title]="descripcionProducto(producto)">{{ producto.nombre }}</h2>
+                    <p class="mt-0.5 font-mono text-xs text-gray-400">{{ producto.sku }}</p>
+                  </div>
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ estadoClase(producto.estado) }}">{{ producto.estado }}</span>
               </div>
@@ -108,7 +119,7 @@
                   <button type="button" (click)="editarProducto(producto)" aria-label="Editar producto" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
                     <i class="bi bi-pencil text-sm text-gray-500"></i>
                   </button>
-                  <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto' : 'Activar producto'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                  <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto del catálogo' : 'Activar producto del catálogo'" [title]="producto.estado === 'ACTIVO' ? 'Desactivar producto del catálogo' : 'Activar producto del catálogo'" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
                     <i class="bi text-sm text-gray-500" [class.bi-toggle-on]="producto.estado === 'ACTIVO'" [class.bi-toggle-off]="producto.estado === 'INACTIVO'"></i>
                   </button>
                 </div>
@@ -136,7 +147,16 @@
           <tbody>
             @for (producto of productos; track producto.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3 font-medium text-gray-800">{{ producto.nombre }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    @if (imagenProducto(producto)) {
+                      <img [src]="imagenProducto(producto)" (error)="onImagenProductoError(producto)" [alt]="producto.nombre" class="h-9 w-9 shrink-0 rounded-lg object-cover">
+                    } @else {
+                      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                    }
+                    <span class="font-medium text-gray-800" [title]="descripcionProducto(producto)">{{ producto.nombre }}</span>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ producto.sku }}</td>
                 <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ producto.categoriaNombre }}</td>
                 <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ producto.marcaNombre }}</td>
@@ -149,7 +169,7 @@
                     <button type="button" (click)="editarProducto(producto)" aria-label="Editar producto" class="w-7 h-7 rounded bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition-colors">
                       <i class="bi bi-pencil text-sm text-gray-500 hover:text-indigo-500"></i>
                     </button>
-                    <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto' : 'Activar producto'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <button type="button" (click)="cambiarEstadoProducto(producto)" [attr.aria-label]="producto.estado === 'ACTIVO' ? 'Desactivar producto del catálogo' : 'Activar producto del catálogo'" [title]="producto.estado === 'ACTIVO' ? 'Desactivar producto del catálogo' : 'Activar producto del catálogo'" class="w-7 h-7 rounded bg-gray-100 hover:bg-red-100 flex items-center justify-center transition-colors">
                       <i class="bi text-sm text-gray-500 hover:text-red-500" [class.bi-toggle-on]="producto.estado === 'ACTIVO'" [class.bi-toggle-off]="producto.estado === 'INACTIVO'"></i>
                     </button>
                   </div>
@@ -249,9 +269,6 @@
             <label class="block text-sm font-medium text-gray-600 mb-1">Descripción *</label>
             <textarea formControlName="descripcion" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Descripción comercial del producto"></textarea>
           </div>
-          @if (mensaje) {
-            <p class="sm:col-span-2 text-xs text-red-500">{{ mensaje }}</p>
-          }
         </div>
         <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
           <button type="submit" [disabled]="enviando || productoForm.invalid" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>
@@ -286,9 +303,6 @@
             @if (marcaError) {
               <p class="text-xs text-red-500 mt-1">{{ marcaError }}</p>
             }
-            @if (marcaMensaje) {
-              <p class="text-xs text-green-600 mt-1">{{ marcaMensaje }}</p>
-            }
           </div>
           <div class="flex gap-2 sm:items-end">
             <button type="submit" class="flex-1 sm:flex-none bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
@@ -303,8 +317,13 @@
         </form>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
-          <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Marcas registradas
+          <div class="shrink-0 space-y-3 bg-gray-50 px-4 py-3">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">Marcas registradas</div>
+            <label class="relative block">
+              <span class="sr-only">Buscar marcas</span>
+              <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+              <input type="search" [(ngModel)]="marcaBusqueda" (ngModelChange)="onBusquedaMarcasModalChange()" name="busquedaMarcasModal" class="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar marca por nombre">
+            </label>
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
             @for (marca of marcasModal; track marca.id) {
@@ -328,7 +347,7 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay marcas registradas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">{{ marcaBusqueda ? 'No hay marcas que coincidan con la búsqueda.' : 'No hay marcas registradas.' }}</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
@@ -368,9 +387,6 @@
             @if (categoriaError) {
               <p class="text-xs text-red-500 mt-1">{{ categoriaError }}</p>
             }
-            @if (categoriaMensaje) {
-              <p class="text-xs text-green-600 mt-1">{{ categoriaMensaje }}</p>
-            }
           </div>
           <div class="flex gap-2 sm:items-end">
             <button type="submit" class="flex-1 sm:flex-none bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
@@ -385,8 +401,13 @@
         </form>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
-          <div class="shrink-0 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Categorías registradas
+          <div class="shrink-0 space-y-3 bg-gray-50 px-4 py-3">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">Categorías registradas</div>
+            <label class="relative block">
+              <span class="sr-only">Buscar categorías</span>
+              <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+              <input type="search" [(ngModel)]="categoriaBusqueda" (ngModelChange)="onBusquedaCategoriasModalChange()" name="busquedaCategoriasModal" class="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar categoría por nombre">
+            </label>
           </div>
           <div class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto">
             @for (categoria of categoriasModal; track categoria.id) {
@@ -410,7 +431,7 @@
                 </div>
               </div>
             } @empty {
-              <p class="px-4 py-6 text-sm text-gray-400 text-center">No hay categorías registradas.</p>
+              <p class="px-4 py-6 text-sm text-gray-400 text-center">{{ categoriaBusqueda ? 'No hay categorías que coincidan con la búsqueda.' : 'No hay categorías registradas.' }}</p>
             }
           </div>
           <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">

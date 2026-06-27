@@ -12,10 +12,20 @@
       <h1 class="text-xl font-bold text-gray-800">Reportes</h1>
       <p class="text-sm text-gray-400 mt-0.5">Movimientos, stock y valorización del inventario</p>
     </div>
-    <button (click)="cargarReportes()" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600">
-      <i class="bi bi-arrow-clockwise"></i>
-      Actualizar
-    </button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <button type="button" (click)="exportarReporteExcel()" class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        Excel
+      </button>
+      <button type="button" (click)="exportarReportePdf()" class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+        <i class="bi bi-file-earmark-pdf"></i>
+        PDF
+      </button>
+      <button (click)="cargarReportes()" class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600">
+        <i class="bi bi-arrow-clockwise"></i>
+        Actualizar
+      </button>
+    </div>
   </div>
 
   @if (estado === 'error') {
@@ -64,7 +74,7 @@
   } @else {
     @if (pestanaActiva === 'movimientos') {
       <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <form [formGroup]="filtrosMovimientos" (ngSubmit)="aplicarFiltrosMovimientos()" class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-4 md:grid-cols-5">
+        <form [formGroup]="filtrosMovimientos" class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-4 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_minmax(160px,1fr)_minmax(180px,1fr)_auto]">
           <input type="date" formControlName="fechaInicio" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" aria-label="Fecha inicio">
           <input type="date" formControlName="fechaFin" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" aria-label="Fecha fin">
           <select formControlName="tipo" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" aria-label="Tipo de movimiento">
@@ -77,7 +87,6 @@
             Incluir anulados
           </label>
           <div class="flex gap-2">
-            <button type="submit" class="flex-1 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600">Filtrar</button>
             <button type="button" (click)="limpiarFiltrosMovimientos()" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Limpiar</button>
           </div>
         </form>
@@ -87,7 +96,7 @@
         } @else {
           <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
             <div class="space-y-3 xl:hidden">
-              @for (movimiento of movimientos; track movimiento.id) {
+              @for (movimiento of movimientosPaginados; track movimiento.id) {
                 <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                   <div class="mb-3 flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -138,7 +147,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (movimiento of movimientos; track movimiento.id) {
+                @for (movimiento of movimientosPaginados; track movimiento.id) {
                   <tr class="border-b border-gray-50 last:border-0">
                     <td class="px-4 py-3 text-gray-500">{{ movimiento.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
                     <td class="px-4 py-3">
@@ -160,20 +169,26 @@
               </tbody>
             </table>
           </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ movimientos.length }} registros encontrados. {{ textoPagina(paginaMovimientos, movimientos.length) }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaMovimientos(paginaMovimientos - 1)" [disabled]="paginaMovimientos === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaMovimientos(paginaMovimientos + 1)" [disabled]="paginaMovimientos + 1 >= totalPaginas(movimientos.length)" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
+          </div>
         }
       </section>
     }
 
     @if (pestanaActiva === 'stock') {
       <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <form [formGroup]="filtrosStock" (ngSubmit)="aplicarFiltrosStock()" class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-4 md:grid-cols-[180px_1fr_auto_auto]">
+        <form [formGroup]="filtrosStock" class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-4 md:grid-cols-[180px_1fr_auto]">
           <select formControlName="estado" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" aria-label="Estado de inventario">
             @for (estadoItem of estadosInventario; track estadoItem) {
               <option [value]="estadoItem">{{ estadoItem }}</option>
             }
           </select>
           <input type="search" formControlName="busqueda" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none" placeholder="Buscar por producto, SKU, categoría o marca">
-          <button type="submit" class="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600">Filtrar</button>
           <button type="button" (click)="limpiarFiltrosStock()" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Limpiar</button>
         </form>
 
@@ -182,7 +197,7 @@
         } @else {
           <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
             <div class="space-y-3 xl:hidden">
-              @for (item of stock; track item.productoId) {
+              @for (item of stockPaginado; track item.productoId) {
                 <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                   <div class="mb-3 flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -230,7 +245,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (item of stock; track item.productoId) {
+                @for (item of stockPaginado; track item.productoId) {
                   <tr class="border-b border-gray-50 last:border-0">
                     <td class="px-4 py-3">
                       <p class="font-semibold text-gray-800">{{ item.productoNombre }}</p>
@@ -247,6 +262,13 @@
               </tbody>
             </table>
           </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ stock.length }} registros encontrados. {{ textoPagina(paginaStock, stock.length) }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaStock(paginaStock - 1)" [disabled]="paginaStock === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaStock(paginaStock + 1)" [disabled]="paginaStock + 1 >= totalPaginas(stock.length)" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
+          </div>
         }
       </section>
     }
@@ -258,7 +280,7 @@
         } @else {
           <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
             <div class="space-y-3 xl:hidden">
-              @for (item of stockCritico; track item.productoId) {
+              @for (item of stockCriticoPaginado; track item.productoId) {
                 <article class="rounded-xl border border-red-100 bg-white p-4 shadow-sm">
                   <div class="mb-3 min-w-0">
                     <h2 class="truncate text-base font-semibold text-gray-800">{{ item.productoNombre }}</h2>
@@ -297,7 +319,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (item of stockCritico; track item.productoId) {
+                @for (item of stockCriticoPaginado; track item.productoId) {
                   <tr class="border-b border-gray-50 last:border-0">
                     <td class="px-4 py-3">
                       <p class="font-semibold text-gray-800">{{ item.productoNombre }}</p>
@@ -311,6 +333,13 @@
                 }
               </tbody>
             </table>
+          </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ stockCritico.length }} registros encontrados. {{ textoPagina(paginaCritico, stockCritico.length) }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaCritico(paginaCritico - 1)" [disabled]="paginaCritico === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaCritico(paginaCritico + 1)" [disabled]="paginaCritico + 1 >= totalPaginas(stockCritico.length)" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
           </div>
         }
       </section>
@@ -333,12 +362,12 @@
           </div>
         </div>
 
-        @if (!valorizacion?.items?.length) {
+        @if (!valorizacionItems.length) {
           <div class="flex flex-1 items-center justify-center p-8 text-center text-sm text-gray-500">No hay inventario valorizado.</div>
         } @else {
           <div class="min-h-0 flex-1 overflow-auto p-3 xl:p-0">
             <div class="space-y-3 xl:hidden">
-              @for (item of valorizacion?.items; track item.productoId) {
+              @for (item of valorizacionPaginada; track item.productoId) {
                 <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                   <div class="mb-3 min-w-0">
                     <h2 class="truncate text-base font-semibold text-gray-800">{{ item.productoNombre }}</h2>
@@ -387,7 +416,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (item of valorizacion?.items; track item.productoId) {
+                @for (item of valorizacionPaginada; track item.productoId) {
                   <tr class="border-b border-gray-50 last:border-0">
                     <td class="px-4 py-3">
                       <p class="font-semibold text-gray-800">{{ item.productoNombre }}</p>
@@ -403,6 +432,13 @@
                 }
               </tbody>
             </table>
+          </div>
+          <div class="flex shrink-0 flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>{{ valorizacionItems.length }} registros encontrados. {{ textoPagina(paginaValorizacion, valorizacionItems.length) }}.</p>
+            <div class="flex gap-2">
+              <button type="button" (click)="irAPaginaValorizacion(paginaValorizacion - 1)" [disabled]="paginaValorizacion === 0" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Anterior</button>
+              <button type="button" (click)="irAPaginaValorizacion(paginaValorizacion + 1)" [disabled]="paginaValorizacion + 1 >= totalPaginas(valorizacionItems.length)" class="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-gray-600 disabled:opacity-50">Siguiente</button>
+            </div>
           </div>
         }
       </section>

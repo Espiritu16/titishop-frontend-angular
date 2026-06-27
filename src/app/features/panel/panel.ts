@@ -1,20 +1,33 @@
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { getApiErrorMessage } from '../../core/api-error';
+import { nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { ColumnaExportacion, ExportacionSinDatosError, exportarExcel, exportarPdf } from '../../core/exportacion';
 import { PanelResumenResponse, TipoMovimiento } from '../../core/models';
+import { NotificacionService } from '../../core/notificacion.service';
 import { PanelService } from './panel.service';
 
 interface KpiItem {
   label: string;
   value: number | string;
   meta: string;
+  icon: string;
+  tone: 'indigo' | 'emerald' | 'amber' | 'rose';
+}
+
+interface QuickAction {
+  label: string;
+  description: string;
+  path: string;
+  icon: string;
 }
 
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
   selector: 'app-panel',
-  imports: [DatePipe],
+  imports: [DatePipe, CurrencyPipe, RouterLink],
   templateUrl: './panel.html',
   styleUrl: './panel.scss',
 })
@@ -23,7 +36,10 @@ export class Panel {
   error = '';
   resumen: PanelResumenResponse | null = null;
 
-  constructor(private panelService: PanelService) {
+  constructor(
+    private panelService: PanelService,
+    private notificacion: NotificacionService
+  ) {
     this.cargarPanel();
   }
 
@@ -34,23 +50,84 @@ export class Panel {
         label: 'Productos activos',
         value: resumen?.totalProductosActivos ?? 0,
         meta: 'Catálogo vigente',
+        icon: 'bi-box-seam',
+        tone: 'indigo',
+      },
+      {
+        label: 'Proveedores activos',
+        value: resumen?.totalProveedoresActivos ?? 0,
+        meta: 'Abastecimiento habilitado',
+        icon: 'bi-truck',
+        tone: 'emerald',
       },
       {
         label: 'Stock crítico',
         value: resumen?.productosStockCritico ?? 0,
         meta: 'Requiere reposición',
+        icon: 'bi-exclamation-triangle',
+        tone: 'amber',
       },
       {
         label: 'Movimientos hoy',
         value: resumen?.movimientosDelDia ?? 0,
         meta: 'Actividad diaria',
-      },
-      {
-        label: 'Valor inventario',
-        value: `S/ ${resumen?.valorEstimadoInventario ?? 0}`,
-        meta: 'Costo estimado',
+        icon: 'bi-arrow-left-right',
+        tone: 'rose',
       },
     ];
+  }
+
+  get quickActions(): QuickAction[] {
+    return [
+      {
+        label: 'Registrar movimiento',
+        description: 'Entradas, salidas o ajustes',
+        path: '/movimientos',
+        icon: 'bi-plus-circle',
+      },
+      {
+        label: 'Revisar inventario',
+        description: 'Stock actual y mínimo',
+        path: '/inventario',
+        icon: 'bi-archive',
+      },
+      {
+        label: 'Gestionar productos',
+        description: 'Catálogo y precios',
+        path: '/productos',
+        icon: 'bi-box',
+      },
+      {
+        label: 'Ver reportes',
+        description: 'Movimientos y valorización',
+        path: '/reportes',
+        icon: 'bi-bar-chart-line',
+      },
+    ];
+  }
+
+  get balanceMensual(): number {
+    return (this.resumen?.entradasDelMes ?? 0) - (this.resumen?.salidasDelMes ?? 0);
+  }
+
+  get porcentajeSalidaMensual(): number {
+    const entradas = this.resumen?.entradasDelMes ?? 0;
+    const salidas = this.resumen?.salidasDelMes ?? 0;
+    if (entradas <= 0) return salidas > 0 ? 100 : 0;
+    return Math.min(100, Math.round((salidas / entradas) * 100));
+  }
+
+  get estadoOperativo(): string {
+    if ((this.resumen?.productosStockCritico ?? 0) > 0) return 'Atención requerida';
+    if ((this.resumen?.movimientosDelDia ?? 0) > 0) return 'Operación activa';
+    return 'Sin incidencias';
+  }
+
+  kpiToneClasses(tone: KpiItem['tone']): string {
+    if (tone === 'emerald') return 'bg-emerald-50 text-emerald-600';
+    if (tone === 'amber') return 'bg-amber-50 text-amber-600';
+    if (tone === 'rose') return 'bg-rose-50 text-rose-600';
+    return 'bg-indigo-50 text-indigo-600';
   }
 
   cargarPanel(): void {
@@ -76,5 +153,40 @@ export class Panel {
 
   movimientoCantidad(type: TipoMovimiento, quantity: number): string {
     return type === 'SALIDA' ? `-${quantity}` : `+${quantity}`;
+  }
+
+  exportarPanelExcel(): void {
+    this.exportarPanel('excel');
+  }
+
+  exportarPanelPdf(): void {
+    this.exportarPanel('pdf');
+  }
+
+  private exportarPanel(tipo: 'excel' | 'pdf'): void {
+    const filas = [
+      ...this.kpis.map((kpi) => ({ seccion: 'Indicador', nombre: kpi.label, valor: kpi.value, detalle: kpi.meta })),
+      ...((this.resumen?.ultimosMovimientos ?? []).map((movimiento) => ({
+        seccion: 'Movimiento',
+        nombre: `${movimiento.tipo} ${movimiento.productoNombre}`,
+        valor: this.movimientoCantidad(movimiento.tipo, movimiento.cantidad),
+        detalle: `${movimiento.productoSku} - ${movimiento.creadoPorNombre} - ${movimiento.fecha}`,
+      }))),
+    ];
+    const columnas: Array<ColumnaExportacion<(typeof filas)[number]>> = [
+      { encabezado: 'Seccion', valor: (fila) => fila.seccion },
+      { encabezado: 'Nombre', valor: (fila) => fila.nombre },
+      { encabezado: 'Valor', valor: (fila) => fila.valor },
+      { encabezado: 'Detalle', valor: (fila) => fila.detalle },
+    ];
+    try {
+      const archivo = nombreArchivoExportacion('panel operativo', tipo).replace(/\.(xls|pdf)$/i, '');
+      if (tipo === 'excel') exportarExcel('Panel operativo', archivo, filas, columnas);
+      else exportarPdf('Panel operativo', archivo, filas, columnas);
+      this.notificacion.success(`Panel exportado a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+    } catch (error) {
+      if (error instanceof ExportacionSinDatosError) this.notificacion.info(error.message);
+      else this.notificacion.error('No se pudo exportar el panel.');
+    }
   }
 }

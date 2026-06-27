@@ -4,6 +4,15 @@
     <small class="text-sm text-slate-500">TitiShop Perú</small>
   </div>
   <div class="flex items-center gap-3">
+    <button
+      type="button"
+      (click)="toggleTheme()"
+      class="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white/90 text-slate-600 transition-colors hover:bg-white"
+      [attr.aria-label]="theme.isDark ? 'Activar modo claro' : 'Activar modo oscuro'"
+      [title]="theme.isDark ? 'Modo claro' : 'Modo oscuro'"
+    >
+      <i class="bi text-base" [class.bi-sun-fill]="theme.isDark" [class.bi-moon-stars-fill]="!theme.isDark"></i>
+    </button>
     <div class="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-500 md:flex">
       <i class="bi bi-shield-check"></i>
       <small>Operación interna segura</small>

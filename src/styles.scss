@@ -28,6 +28,88 @@ body {
     linear-gradient(120deg, var(--ts-mint), var(--ts-sky));
 }
 
+html,
+body {
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.dark-theme body,
+body.dark-theme {
+  color: #e5e7eb;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.18) 0%, transparent 34%),
+    radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.16) 0%, transparent 40%),
+    linear-gradient(120deg, #111827, #1f2937);
+}
+
+.dark-theme .bg-gray-100,
+.dark-theme .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark-theme .bg-white,
+.dark-theme .bg-white\/80,
+.dark-theme .bg-white\/85,
+.dark-theme .bg-white\/90 {
+  background-color: rgba(31, 41, 55, 0.94) !important;
+}
+
+.dark-theme .bg-indigo-50 {
+  background-color: rgba(67, 56, 202, 0.22) !important;
+}
+
+.dark-theme .bg-red-50 {
+  background-color: rgba(127, 29, 29, 0.28) !important;
+}
+
+.dark-theme .bg-emerald-50,
+.dark-theme .bg-emerald-100 {
+  background-color: rgba(6, 78, 59, 0.32) !important;
+}
+
+.dark-theme .border-gray-100,
+.dark-theme .border-gray-200,
+.dark-theme .border-slate-200,
+.dark-theme .border-white\/70 {
+  border-color: #374151 !important;
+}
+
+.dark-theme .text-gray-300,
+.dark-theme .text-gray-400,
+.dark-theme .text-gray-500,
+.dark-theme .text-slate-400,
+.dark-theme .text-slate-500 {
+  color: #9ca3af !important;
+}
+
+.dark-theme .text-gray-600,
+.dark-theme .text-gray-700,
+.dark-theme .text-gray-800,
+.dark-theme .text-slate-600,
+.dark-theme .text-slate-700,
+.dark-theme .text-slate-800 {
+  color: #e5e7eb !important;
+}
+
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea {
+  background-color: #111827 !important;
+  border-color: #4b5563 !important;
+  color: #f9fafb !important;
+}
+
+.dark-theme input::placeholder,
+.dark-theme textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.dark-theme .hover\:bg-gray-50:hover,
+.dark-theme .hover\:bg-gray-100:hover,
+.dark-theme .hover\:bg-gray-200:hover {
+  background-color: #374151 !important;
+}
+
 .app-page {
   display: grid;
   gap: 1rem;

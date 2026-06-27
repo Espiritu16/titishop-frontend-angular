@@ -7,16 +7,26 @@
 </header>
 
 <main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
-  <div class="flex items-center justify-between mb-5">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-800">Usuarios</h1>
       <p class="text-sm text-gray-400 mt-0.5">Gestión de cuentas del sistema</p>
     </div>
-    <button (click)="cancelarEdicion(); mostrarModal = true" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-      <i class="bi bi-plus-lg"></i>
-      <span class="hidden sm:inline">Nuevo usuario</span>
-      <span class="sm:hidden">Nuevo</span>
-    </button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <button type="button" (click)="exportarUsuariosExcel()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        <span>Excel</span>
+      </button>
+      <button type="button" (click)="exportarUsuariosPdf()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i>
+        <span>PDF</span>
+      </button>
+      <button (click)="cancelarEdicion(); mostrarModal = true" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-plus-lg"></i>
+        <span class="hidden sm:inline">Nuevo usuario</span>
+        <span class="sm:hidden">Nuevo</span>
+      </button>
+    </div>
   </div>
 
   @if (estadoListado === 'cargando') {
@@ -37,7 +47,7 @@
     <label class="relative block">
       <span class="sr-only">Buscar usuarios</span>
       <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-      <input type="search" [(ngModel)]="filtrosUsuario.busqueda" (ngModelChange)="onFiltrosChange()" name="busquedaUsuarios" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, correo o rol">
+      <input type="search" [(ngModel)]="filtrosUsuario.busqueda" (ngModelChange)="onBusquedaChange()" name="busquedaUsuarios" class="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none" placeholder="Buscar por nombre, correo o rol">
     </label>
     <label>
       <span class="sr-only">Filtrar usuarios por rol</span>
@@ -181,9 +191,6 @@
             <p class="mt-1 text-xs text-red-500">La contraseña debe tener al menos 8 caracteres.</p>
           }
         </div>
-        @if (mensaje) {
-          <p class="text-xs" [class.text-red-500]="usuarioForm.invalid || mensaje.includes('error')" [class.text-gray-500]="usuarioForm.valid && !mensaje.includes('error')">{{ mensaje }}</p>
-        }
         <div class="flex gap-3 pt-2 border-t border-gray-100">
           <button type="submit" [disabled]="!puedeGuardar" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-300 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ usuarioEditandoId ? 'Actualizar' : 'Guardar' }}</button>
           <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
