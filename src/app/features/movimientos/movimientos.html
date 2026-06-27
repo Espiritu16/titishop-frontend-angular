@@ -7,16 +7,26 @@
 </header>
 
 <main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
-  <div class="flex items-center justify-between mb-5">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-800">Movimientos</h1>
       <p class="text-sm text-gray-400 mt-0.5">Registro de entradas, salidas y ajustes</p>
     </div>
-    <button type="button" (click)="abrirModal()" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-      <i class="bi bi-plus-lg"></i>
-      <span class="hidden sm:inline">Nuevo movimiento</span>
-      <span class="sm:hidden">Nuevo</span>
-    </button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <button type="button" (click)="exportarMovimientosExcel()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        <span>Excel</span>
+      </button>
+      <button type="button" (click)="exportarMovimientosPdf()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i>
+        <span>PDF</span>
+      </button>
+      <button type="button" (click)="abrirModal()" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-plus-lg"></i>
+        <span class="hidden sm:inline">Nuevo movimiento</span>
+        <span class="sm:hidden">Nuevo</span>
+      </button>
+    </div>
   </div>
 
   @if (estadoListado === 'cargando') {
@@ -54,9 +64,16 @@
           @for (movimiento of movimientos; track movimiento.id) {
             <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm" [class.opacity-60]="estaAnulado(movimiento)">
               <div class="mb-3 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="truncate text-base font-semibold text-gray-800">{{ movimiento.productoNombre }}</h2>
-                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                <div class="flex min-w-0 items-center gap-3">
+                  @if (productoImagen(movimiento)) {
+                    <img [src]="productoImagen(movimiento)" (error)="onImagenProductoError(movimiento)" [alt]="movimiento.productoNombre" class="h-11 w-11 shrink-0 rounded-lg object-cover">
+                  } @else {
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                  }
+                  <div class="min-w-0">
+                    <h2 class="truncate text-base font-semibold text-gray-800" [title]="productoDescripcion(movimiento)">{{ movimiento.productoNombre }}</h2>
+                    <p class="mt-0.5 font-mono text-xs text-gray-400">{{ movimiento.productoSku }}</p>
+                  </div>
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span>
               </div>
@@ -108,7 +125,16 @@
             @for (movimiento of movimientos; track movimiento.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors" [class.opacity-50]="estaAnulado(movimiento)">
                 <td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ movimientoClase(movimiento.tipo) }}">{{ movimiento.tipo }}</span></td>
-                <td class="px-4 py-3 font-medium text-gray-800">{{ movimiento.productoNombre }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    @if (productoImagen(movimiento)) {
+                      <img [src]="productoImagen(movimiento)" (error)="onImagenProductoError(movimiento)" [alt]="movimiento.productoNombre" class="h-9 w-9 shrink-0 rounded-lg object-cover">
+                    } @else {
+                      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                    }
+                    <span class="font-medium text-gray-800" [title]="productoDescripcion(movimiento)">{{ movimiento.productoNombre }}</span>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{{ movimiento.productoSku }}</td>
                 <td class="px-4 py-3 text-gray-600 hidden md:table-cell">{{ movimiento.proveedorRazonSocial || '-' }}</td>
                 <td class="px-4 py-3 font-semibold text-gray-800">{{ movimiento.cantidad }}</td>

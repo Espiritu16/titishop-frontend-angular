@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import {
@@ -239,6 +240,14 @@ export class Movimientos implements OnDestroy {
     this.cargarDatos();
   }
 
+  exportarMovimientosExcel(): void {
+    this.exportarMovimientos('excel');
+  }
+
+  exportarMovimientosPdf(): void {
+    this.exportarMovimientos('pdf');
+  }
+
   async registrarMovimiento(): Promise<void> {
     if (this.enviando) return;
     if (!this.puedeGuardar) {
@@ -400,6 +409,23 @@ export class Movimientos implements OnDestroy {
     return this.estaAnulado(movimiento) ? 'ANULADO' : 'VIGENTE';
   }
 
+  productoPorId(productoId: string): ProductoResponse | null {
+    return this.productos.find((producto) => producto.id === productoId) ?? null;
+  }
+
+  productoDescripcion(movimiento: MovimientoResponse): string {
+    return this.productoPorId(movimiento.productoId)?.descripcion?.trim() || 'Sin descripción registrada.';
+  }
+
+  productoImagen(movimiento: MovimientoResponse): string | null {
+    return this.productoPorId(movimiento.productoId)?.imagenUrl?.trim() || null;
+  }
+
+  onImagenProductoError(movimiento: MovimientoResponse): void {
+    const producto = this.productoPorId(movimiento.productoId);
+    if (producto) producto.imagenUrl = '';
+  }
+
   private configurarTipoMovimiento(tipo: TipoMovimiento): void {
     if (tipo === 'ENTRADA') {
       this.movimientoForm.controls.proveedorId.enable({ emitEvent: false });
@@ -461,5 +487,19 @@ export class Movimientos implements OnDestroy {
 
   private normalizarBusqueda(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  private exportarMovimientos(tipo: 'excel' | 'pdf'): void {
+    this.movimientosService.exportar(tipo, {
+      busqueda: this.filtrosMovimiento.busqueda,
+      tipo: this.filtrosMovimiento.tipo,
+      anulado: this.filtrosMovimiento.estado === 'TODOS' ? undefined : this.filtrosMovimiento.estado === 'ANULADO',
+    }).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('movimientos', tipo));
+        this.notificacion.success(`Movimientos exportados a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }

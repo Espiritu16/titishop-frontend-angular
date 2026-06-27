@@ -7,16 +7,26 @@
 </header>
 
 <main class="flex flex-1 min-h-0 flex-col overflow-hidden px-4 sm:px-6 py-5">
-  <div class="flex items-center justify-between mb-5">
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-800">Inventario</h1>
       <p class="text-sm text-gray-400 mt-0.5">Control de stock por ubicación</p>
     </div>
-    <button type="button" (click)="abrirModal()" class="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-      <i class="bi bi-plus-lg"></i>
-      <span class="hidden sm:inline">Nuevo registro</span>
-      <span class="sm:hidden">Nuevo</span>
-    </button>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <button type="button" (click)="exportarInventarioExcel()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+        <span>Excel</span>
+      </button>
+      <button type="button" (click)="exportarInventarioPdf()" class="flex items-center justify-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i>
+        <span>PDF</span>
+      </button>
+      <button type="button" (click)="abrirModal()" class="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        <i class="bi bi-plus-lg"></i>
+        <span class="hidden sm:inline">Nuevo registro</span>
+        <span class="sm:hidden">Nuevo</span>
+      </button>
+    </div>
   </div>
 
   @if (estadoListado === 'cargando') {
@@ -54,9 +64,16 @@
           @for (item of inventarios; track item.id) {
             <article class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
               <div class="mb-3 flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="truncate text-base font-semibold text-gray-800">{{ item.productoNombre }}</h2>
-                  <p class="mt-0.5 font-mono text-xs text-gray-400">{{ item.productoSku }}</p>
+                <div class="flex min-w-0 items-center gap-3">
+                  @if (productoImagen(item)) {
+                    <img [src]="productoImagen(item)" (error)="onImagenProductoError(item)" [alt]="item.productoNombre" class="h-11 w-11 shrink-0 rounded-lg object-cover">
+                  } @else {
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                  }
+                  <div class="min-w-0">
+                    <h2 class="truncate text-base font-semibold text-gray-800" [title]="productoDescripcion(item)">{{ item.productoNombre }}</h2>
+                    <p class="mt-0.5 font-mono text-xs text-gray-400">{{ item.productoSku }}</p>
+                  </div>
                   @if (productoInactivo(item)) {
                     <p class="mt-1 text-xs font-medium text-amber-600">Producto inactivo: stock solo en control de inventario.</p>
                   }
@@ -116,7 +133,14 @@
             @for (item of inventarios; track item.id) {
               <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
                 <td class="px-4 py-3">
-                  <p class="font-medium text-gray-800">{{ item.productoNombre }}</p>
+                  <div class="flex items-center gap-3">
+                    @if (productoImagen(item)) {
+                      <img [src]="productoImagen(item)" (error)="onImagenProductoError(item)" [alt]="item.productoNombre" class="h-9 w-9 shrink-0 rounded-lg object-cover">
+                    } @else {
+                      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-400"><i class="bi bi-image"></i></span>
+                    }
+                    <p class="font-medium text-gray-800" [title]="productoDescripcion(item)">{{ item.productoNombre }}</p>
+                  </div>
                   @if (productoInactivo(item)) {
                     <p class="mt-0.5 text-xs text-amber-600">Catálogo inactivo</p>
                   }
@@ -172,12 +196,34 @@
       <form [formGroup]="inventarioForm" (ngSubmit)="guardarInventario()" class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="sm:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
-          <select formControlName="productoId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
-            <option value="">Seleccione producto</option>
-            @for (producto of productosActivosSinInventario; track producto.id) {
-              <option [value]="producto.id">{{ producto.nombre }} - {{ producto.sku }}</option>
+          <div class="producto-selector" (focusout)="onProductoSelectorFocusOut($event)">
+            <div class="producto-selector__control" [class.producto-selector__control--open]="dropdownProductoAbierto">
+              <i class="bi bi-search producto-selector__icon"></i>
+              <input type="text" [value]="busquedaProducto" (focus)="abrirDropdownProducto()" (input)="onBusquedaProductoChange($any($event.target).value)" class="producto-selector__input" [disabled]="inventarioForm.controls.productoId.disabled" placeholder="Buscar por nombre o SKU" aria-label="Buscar producto" autocomplete="off">
+              @if (inventarioForm.controls.productoId.value && inventarioForm.controls.productoId.enabled) {
+                <button type="button" (click)="limpiarProductoSeleccionado()" class="producto-selector__clear" aria-label="Limpiar producto seleccionado">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              }
+              <button type="button" (click)="dropdownProductoAbierto = !dropdownProductoAbierto" [disabled]="inventarioForm.controls.productoId.disabled" class="producto-selector__toggle" aria-label="Mostrar opciones de producto">
+                <i class="bi" [class.bi-chevron-down]="!dropdownProductoAbierto" [class.bi-chevron-up]="dropdownProductoAbierto"></i>
+              </button>
+            </div>
+            @if (dropdownProductoAbierto) {
+              <div class="producto-selector__menu">
+                @for (producto of productosFiltradosSelector; track producto.id) {
+                  <button type="button" (click)="seleccionarProducto(producto)" class="producto-selector__option" [class.producto-selector__option--selected]="productoSeleccionadoEs(producto.id)">
+                    <span class="min-w-0">
+                      <span class="producto-selector__name">{{ producto.nombre }}</span>
+                    </span>
+                    <span class="producto-selector__sku">{{ producto.sku }}</span>
+                  </button>
+                } @empty {
+                  <div class="producto-selector__empty">No se encontraron productos activos disponibles.</div>
+                }
+              </div>
             }
-          </select>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Stock actual *</label>

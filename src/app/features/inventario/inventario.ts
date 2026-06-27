@@ -5,6 +5,7 @@ import { forkJoin, Observable } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
+import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { EstadoInventario, EstadoProducto, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
@@ -27,6 +28,9 @@ export class Inventario implements OnDestroy {
   editandoId: string | null = null;
   inventarios: InventarioResponse[] = [];
   productos: ProductoResponse[] = [];
+  busquedaProducto = '';
+  dropdownProductoAbierto = false;
+  productoSeleccionado: ProductoResponse | null = null;
   mostrarModal = false;
   enviando = false;
   inventarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
@@ -66,6 +70,14 @@ export class Inventario implements OnDestroy {
       (producto) =>
         producto.estado === 'ACTIVO' &&
         (!productoIdsConInventario.has(producto.id) || producto.id === this.productoEditandoId())
+    );
+  }
+
+  get productosFiltradosSelector(): ProductoResponse[] {
+    const texto = this.normalizarBusqueda(this.busquedaProducto);
+    if (!texto) return this.productosActivosSinInventario;
+    return this.productosActivosSinInventario.filter((producto) =>
+      this.normalizarBusqueda(`${producto.nombre} ${producto.sku}`).includes(texto)
     );
   }
 
@@ -141,6 +153,14 @@ export class Inventario implements OnDestroy {
     this.cargarDatos();
   }
 
+  exportarInventarioExcel(): void {
+    this.exportarInventario('excel');
+  }
+
+  exportarInventarioPdf(): void {
+    this.exportarInventario('pdf');
+  }
+
   guardarInventario(): void {
     if (this.enviando) return;
     if (this.inventarioForm.invalid) {
@@ -209,6 +229,7 @@ export class Inventario implements OnDestroy {
       ubicacion: item.ubicacion,
       estado: item.estado,
     });
+    this.sincronizarSelectorProducto();
     this.notificacion.info(`Editando inventario de ${item.productoNombre}.`);
   }
 
@@ -224,6 +245,52 @@ export class Inventario implements OnDestroy {
       stockMinimo: 0,
       ubicacion: '',
     });
+    this.resetearSelectorProducto();
+  }
+
+  abrirDropdownProducto(): void {
+    if (this.inventarioForm.controls.productoId.disabled) return;
+    this.dropdownProductoAbierto = true;
+    if (!this.busquedaProducto && this.productoSeleccionado) {
+      this.busquedaProducto = this.textoProducto(this.productoSeleccionado);
+    }
+  }
+
+  onBusquedaProductoChange(valor: string): void {
+    if (this.inventarioForm.controls.productoId.disabled) return;
+    this.busquedaProducto = valor;
+    this.dropdownProductoAbierto = true;
+    if (this.productoSeleccionado && valor !== this.textoProducto(this.productoSeleccionado)) {
+      this.productoSeleccionado = null;
+      this.inventarioForm.controls.productoId.setValue('');
+    }
+  }
+
+  seleccionarProducto(producto: ProductoResponse): void {
+    this.productoSeleccionado = producto;
+    this.busquedaProducto = this.textoProducto(producto);
+    this.inventarioForm.controls.productoId.setValue(producto.id);
+    this.inventarioForm.controls.productoId.markAsDirty();
+    this.dropdownProductoAbierto = false;
+  }
+
+  limpiarProductoSeleccionado(): void {
+    this.resetearSelectorProducto();
+    this.inventarioForm.controls.productoId.setValue('');
+    this.inventarioForm.controls.productoId.markAsTouched();
+  }
+
+  onProductoSelectorFocusOut(event: FocusEvent): void {
+    const siguiente = event.relatedTarget;
+    if (siguiente instanceof Node && event.currentTarget instanceof Node && event.currentTarget.contains(siguiente)) return;
+    setTimeout(() => {
+      this.busquedaProducto = this.productoSeleccionado ? this.textoProducto(this.productoSeleccionado) : '';
+      this.dropdownProductoAbierto = false;
+    });
+  }
+
+  productoSeleccionadoEs(productoId: string): boolean {
+    return this.productoSeleccionado?.id === productoId;
   }
 
   async cambiarEstadoInventario(item: InventarioResponse): Promise<void> {
@@ -280,6 +347,23 @@ export class Inventario implements OnDestroy {
     return 'bg-gray-100 text-gray-500';
   }
 
+  productoPorId(productoId: string): ProductoResponse | null {
+    return this.productos.find((producto) => producto.id === productoId) ?? null;
+  }
+
+  productoDescripcion(item: InventarioResponse): string {
+    return this.productoPorId(item.productoId)?.descripcion?.trim() || 'Sin descripción registrada.';
+  }
+
+  productoImagen(item: InventarioResponse): string | null {
+    return this.productoPorId(item.productoId)?.imagenUrl?.trim() || null;
+  }
+
+  onImagenProductoError(item: InventarioResponse): void {
+    const producto = this.productoPorId(item.productoId);
+    if (producto) producto.imagenUrl = '';
+  }
+
   private productoEditandoId(): string | null {
     if (!this.editandoId) return null;
     return this.inventarios.find((item) => item.id === this.editandoId)?.productoId ?? null;
@@ -287,5 +371,40 @@ export class Inventario implements OnDestroy {
 
   private normalizarTexto(value: string): string {
     return value.trim().replace(/\s{2,}/g, ' ');
+  }
+
+  private resetearSelectorProducto(): void {
+    this.busquedaProducto = '';
+    this.dropdownProductoAbierto = false;
+    this.productoSeleccionado = null;
+  }
+
+  private sincronizarSelectorProducto(): void {
+    const productoId = this.inventarioForm.getRawValue().productoId;
+    this.productoSeleccionado = this.productos.find((producto) => producto.id === productoId) ?? null;
+    this.busquedaProducto = this.productoSeleccionado ? this.textoProducto(this.productoSeleccionado) : '';
+    this.dropdownProductoAbierto = false;
+  }
+
+  private textoProducto(producto: ProductoResponse): string {
+    return `${producto.nombre} - ${producto.sku}`;
+  }
+
+  private normalizarBusqueda(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private exportarInventario(tipo: 'excel' | 'pdf'): void {
+    this.inventarioService.exportar(tipo, {
+      busqueda: this.filtrosInventario.busqueda,
+      estado: this.filtrosInventario.estado,
+      stockEstado: this.filtrosInventario.stock,
+    }).subscribe({
+      next: (blob) => {
+        descargarBlob(blob, nombreArchivoExportacion('inventario', tipo));
+        this.notificacion.success(`Inventario exportado a ${tipo === 'excel' ? 'Excel' : 'PDF'}.`);
+      },
+      error: (error: unknown) => this.notificacion.error(getApiErrorMessage(error)),
+    });
   }
 }
