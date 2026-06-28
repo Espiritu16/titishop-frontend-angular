@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component } from '@angular/core';
 import { AuthService } from '../../core/auth.service';
+import { SWAGGER_URL } from '../../core/api.config';
 import { EstadoCarga } from '../../core/estado-carga';
 import { getApiErrorMessage } from '../../core/api-error';
 import { NotificacionService } from '../../core/notificacion.service';
@@ -20,7 +21,7 @@ export class Configuracion {
   errorApi = '';
   readonly nombreSistema = 'TitiShop';
   readonly versionSistema = '1.0.0';
-  readonly swaggerUrl = 'http://127.0.0.1:8080/swagger';
+  readonly swaggerUrl = SWAGGER_URL;
 
   constructor(
     public auth: AuthService,

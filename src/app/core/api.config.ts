@@ -7,6 +7,8 @@ const esHostLocal = (): boolean => {
 };
 
 export const API_BASE_URL = esHostLocal() ? API_LOCAL_URL : API_PRODUCCION_URL;
+export const API_ORIGIN_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+export const SWAGGER_URL = `${API_ORIGIN_URL}/swagger`;
 
 export const apiUrl = (path: string): string => {
   const trimmedPath = path.startsWith('/') ? path.slice(1) : path;

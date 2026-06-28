@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { API_BASE_URL, apiUrl } from './api.config';
+import { API_BASE_URL, SWAGGER_URL, apiUrl } from './api.config';
 
 describe('apiUrl', () => {
   it('uses local or production backend according to the current host', () => {
@@ -9,5 +9,10 @@ describe('apiUrl', () => {
   it('does not duplicate the api prefix', () => {
     expect(apiUrl('/productos')).toBe(`${API_BASE_URL}/productos`);
     expect(apiUrl('/api/productos')).toBe(`${API_BASE_URL}/productos`);
+  });
+
+  it('builds the Swagger URL from the backend origin', () => {
+    expect(SWAGGER_URL).toMatch(/^http:\/\/localhost:8080\/swagger$|^https:\/\/api-titishop\.proyectoutp\.com\/swagger$/);
+    expect(SWAGGER_URL).not.toContain('/api/swagger');
   });
 });
