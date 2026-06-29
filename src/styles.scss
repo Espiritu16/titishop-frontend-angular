@@ -143,3 +143,23 @@ body.dark-theme {
     font-size: 1.3rem;
   }
 }
+
+@media (max-width: 1279px) {
+  main.flex-1.overflow-hidden {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  main .flex-1.overflow-hidden.rounded-xl {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  main .flex-1.overflow-auto,
+  main .flex-1.overflow-y-auto {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+  }
+}

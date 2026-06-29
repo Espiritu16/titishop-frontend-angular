@@ -8,8 +8,10 @@ import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
 import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { debeMostrarError, mensajeErrorCampo } from '../../core/form-error';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { NotificacionService } from '../../core/notificacion.service';
+import { PAISES_ORIGEN } from '../../core/paises';
 import {
   CategoriaResponse,
   ArchivoResponse,
@@ -49,6 +51,7 @@ export class Productos implements OnDestroy {
   categoriaError = '';
   categoriaMensaje = '';
   categoriaTexto = '';
+  categoriaFormEnviado = false;
   categoriaBusqueda = '';
   categoriaEditandoId: string | null = null;
   categoriaPaginaActual = 0;
@@ -57,6 +60,7 @@ export class Productos implements OnDestroy {
   marcaError = '';
   marcaMensaje = '';
   marcaTexto = '';
+  marcaFormEnviado = false;
   marcaBusqueda = '';
   marcaEditandoId: string | null = null;
   marcaPaginaActual = 0;
@@ -67,6 +71,7 @@ export class Productos implements OnDestroy {
   imagenProductoNombre = '';
   imagenProductoPreview = '';
   imagenProductoError = '';
+  productoFormEnviado = false;
   productoSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
   categoriaNombreOriginal = '';
   marcaNombreOriginal = '';
@@ -79,6 +84,7 @@ export class Productos implements OnDestroy {
   };
 
   readonly productoForm;
+  readonly paisesOrigen = PAISES_ORIGEN;
   readonly estadosProducto: Array<FiltroTodos<EstadoProducto>> = ['TODOS', 'ACTIVO', 'INACTIVO'];
   paginaActual = 0;
   totalPaginas = 0;
@@ -161,10 +167,69 @@ export class Productos implements OnDestroy {
     return this.marcas.find((marca) => marca.id === this.marcaEditandoId) ?? null;
   }
 
+  get categoriaTextoError(): string {
+    if (!this.categoriaFormEnviado && !this.categoriaTexto.trim()) return '';
+    const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
+    if (!nombre) return 'Ingresa el nombre de la categoria.';
+    if (nombre.length < 2) return 'La categoria debe tener al menos 2 caracteres.';
+    if (nombre.length > 80) return 'La categoria no debe superar 80 caracteres.';
+    return '';
+  }
+
+  get marcaTextoError(): string {
+    if (!this.marcaFormEnviado && !this.marcaTexto.trim()) return '';
+    const nombre = this.normalizarNombreCatalogo(this.marcaTexto);
+    if (!nombre) return 'Ingresa el nombre de la marca.';
+    if (nombre.length < 2) return 'La marca debe tener al menos 2 caracteres.';
+    if (nombre.length > 80) return 'La marca no debe superar 80 caracteres.';
+    return '';
+  }
+
   bloquearTeclasNumeroInvalido(event: KeyboardEvent): void {
     if (['e', 'E', '+', '-'].includes(event.key)) {
       event.preventDefault();
     }
+  }
+
+  productoFieldError(nombre: keyof typeof this.productoForm.controls): string {
+    const mensajes = {
+      nombre: {
+        required: 'Ingresa el nombre del producto.',
+        minlength: 'El nombre debe tener al menos 3 caracteres.',
+        maxlength: 'El nombre no debe superar 120 caracteres.',
+      },
+      sku: {
+        required: 'Ingresa el SKU del producto.',
+        minlength: 'El SKU debe tener al menos 3 caracteres.',
+        maxlength: 'El SKU no debe superar 40 caracteres.',
+      },
+      descripcion: {
+        required: 'Ingresa una descripcion del producto.',
+        minlength: 'La descripcion debe tener al menos 3 caracteres.',
+        maxlength: 'La descripcion no debe superar 2000 caracteres.',
+      },
+      imagenUrl: {
+        maxlength: 'La URL de imagen no debe superar 500 caracteres.',
+      },
+      categoriaId: { required: 'Selecciona una categoria.' },
+      marcaId: { required: 'Selecciona una marca.' },
+      proveedorId: { required: 'Selecciona un proveedor.' },
+      paisOrigen: { required: 'Selecciona el pais de origen.' },
+      precioCompra: {
+        required: 'Ingresa el precio de compra.',
+        min: 'El precio de compra no puede ser negativo.',
+      },
+      precioVenta: {
+        required: 'Ingresa el precio de venta.',
+        min: 'El precio de venta no puede ser negativo.',
+      },
+    } satisfies Partial<Record<keyof typeof this.productoForm.controls, Record<string, string>>>;
+
+    return mensajeErrorCampo(this.productoForm.controls[nombre], mensajes[nombre], this.productoFormEnviado);
+  }
+
+  productoFieldInvalid(nombre: keyof typeof this.productoForm.controls): boolean {
+    return debeMostrarError(this.productoForm.controls[nombre], this.productoFormEnviado);
   }
 
   limpiarFiltrosProductos(): void {
@@ -288,6 +353,7 @@ export class Productos implements OnDestroy {
   }
 
   guardarProducto(): void {
+    this.productoFormEnviado = true;
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
       this.notificacion.error('Completa correctamente los campos obligatorios.');
@@ -356,6 +422,7 @@ export class Productos implements OnDestroy {
   }
 
   editarProducto(producto: ProductoResponse): void {
+    this.productoFormEnviado = false;
     this.editandoId = producto.id;
     this.mostrarModal = true;
     this.productoForm.setValue({
@@ -390,6 +457,7 @@ export class Productos implements OnDestroy {
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.editandoId = null;
+    this.productoFormEnviado = false;
     this.productoSnapshotOriginal = null;
     this.productoForm.reset({
       nombre: '',
@@ -476,6 +544,7 @@ export class Productos implements OnDestroy {
     this.categoriaNombreOriginal = this.normalizarNombreCatalogo(categoria.nombre);
     this.categoriaError = '';
     this.categoriaMensaje = '';
+    this.categoriaFormEnviado = false;
   }
 
   onBusquedaCategoriasModalChange(): void {
@@ -483,11 +552,12 @@ export class Productos implements OnDestroy {
   }
 
   guardarCategoria(): void {
+    this.categoriaFormEnviado = true;
     this.categoriaError = '';
     const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
 
-    if (!nombre) {
-      this.categoriaError = 'Ingrese una categoría válida.';
+    if (this.categoriaTextoError) {
+      this.categoriaError = this.categoriaTextoError;
       return;
     }
 
@@ -574,6 +644,7 @@ export class Productos implements OnDestroy {
     const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '').replace(/\s{2,}/g, ' ');
     if (sanitized !== input.value) input.value = sanitized;
     this.categoriaTexto = sanitized;
+    this.categoriaFormEnviado = true;
     this.categoriaError = '';
     this.categoriaMensaje = '';
   }
@@ -583,6 +654,7 @@ export class Productos implements OnDestroy {
     this.categoriaEditandoId = null;
     this.categoriaNombreOriginal = '';
     this.categoriaError = '';
+    this.categoriaFormEnviado = false;
   }
 
   iniciarEdicionMarca(marca: MarcaResponse): void {
@@ -591,6 +663,7 @@ export class Productos implements OnDestroy {
     this.marcaNombreOriginal = this.normalizarNombreCatalogo(marca.nombre);
     this.marcaError = '';
     this.marcaMensaje = '';
+    this.marcaFormEnviado = false;
   }
 
   onBusquedaMarcasModalChange(): void {
@@ -598,11 +671,12 @@ export class Productos implements OnDestroy {
   }
 
   guardarMarca(): void {
+    this.marcaFormEnviado = true;
     this.marcaError = '';
     const nombre = this.normalizarNombreCatalogo(this.marcaTexto);
 
-    if (!nombre) {
-      this.marcaError = 'Ingrese una marca válida.';
+    if (this.marcaTextoError) {
+      this.marcaError = this.marcaTextoError;
       return;
     }
 
@@ -689,6 +763,7 @@ export class Productos implements OnDestroy {
     const sanitized = input.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,'-]/g, '').replace(/\s{2,}/g, ' ');
     if (sanitized !== input.value) input.value = sanitized;
     this.marcaTexto = sanitized;
+    this.marcaFormEnviado = true;
     this.marcaError = '';
     this.marcaMensaje = '';
   }
@@ -698,6 +773,7 @@ export class Productos implements OnDestroy {
     this.marcaEditandoId = null;
     this.marcaNombreOriginal = '';
     this.marcaError = '';
+    this.marcaFormEnviado = false;
   }
 
   irAPaginaCategorias(page: number): void {

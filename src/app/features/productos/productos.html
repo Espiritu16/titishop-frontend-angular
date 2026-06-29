@@ -43,7 +43,7 @@
     <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ errorListado }}</div>
   } @else {
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-3 md:grid-cols-[minmax(220px,1fr)_150px_170px_170px_190px_auto]">
+      <div class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-3 xl:grid-cols-[minmax(220px,1fr)_150px_170px_170px_190px_auto]">
         <label class="relative block">
           <span class="sr-only">Buscar productos</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
@@ -236,14 +236,23 @@
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-600 mb-1">Nombre *</label>
             <input type="text" formControlName="nombre" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre del producto">
+            @if (productoFieldError('nombre')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('nombre') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">SKU *</label>
             <input type="text" formControlName="sku" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:border-indigo-400" placeholder="TITI-XXX-00">
+            @if (productoFieldError('sku')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('sku') }}</p>
+            }
           </div>
 	          <div>
 	            <label class="block text-sm font-medium text-gray-600 mb-1">URL de la imagen</label>
 	            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
+	            @if (productoFieldError('imagenUrl')) {
+	              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('imagenUrl') }}</p>
+	            }
 	          </div>
 	          <div class="sm:col-span-2">
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Subir imagen</label>
@@ -271,46 +280,75 @@
 	          <div>
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
             <select formControlName="categoriaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              <option value="">Seleccionar categoria...</option>
               @for (categoria of opcionesCategoriaProducto; track categoria.id) {
                 <option [value]="categoria.id">{{ categoria.nombre }}{{ categoria.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
               }
             </select>
+            @if (productoFieldError('categoriaId')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('categoriaId') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Marca *</label>
             <select formControlName="marcaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              <option value="">Seleccionar marca...</option>
               @for (marca of opcionesMarcaProducto; track marca.id) {
                 <option [value]="marca.id">{{ marca.nombre }}{{ marca.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
               }
             </select>
+            @if (productoFieldError('marcaId')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('marcaId') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Proveedor principal *</label>
             <select formControlName="proveedorId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              <option value="">Seleccionar proveedor...</option>
               @for (proveedor of opcionesProveedorProducto; track proveedor.id) {
                 <option [value]="proveedor.id">{{ proveedor.razonSocial }}{{ proveedor.estado === 'INACTIVO' ? ' (inactivo)' : '' }}</option>
               }
             </select>
+            @if (productoFieldError('proveedorId')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('proveedorId') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">País de origen *</label>
-            <input type="text" formControlName="paisOrigen" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="China">
+            <select formControlName="paisOrigen" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
+              <option value="">Seleccionar pais...</option>
+              @for (pais of paisesOrigen; track pais) {
+                <option [value]="pais">{{ pais }}</option>
+              }
+            </select>
+            @if (productoFieldError('paisOrigen')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('paisOrigen') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Precio de compra *</label>
             <input type="number" formControlName="precioCompra" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
+            @if (productoFieldError('precioCompra')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('precioCompra') }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Precio de venta *</label>
             <input type="number" formControlName="precioVenta" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0.00">
+            @if (productoFieldError('precioVenta')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('precioVenta') }}</p>
+            }
           </div>
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-600 mb-1">Descripción *</label>
             <textarea formControlName="descripcion" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Descripción comercial del producto"></textarea>
+            @if (productoFieldError('descripcion')) {
+              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('descripcion') }}</p>
+            }
           </div>
         </div>
         <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
-          <button type="submit" [disabled]="enviando || productoForm.invalid" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>
+          <button type="submit" [disabled]="enviando" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>
           <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
         </div>
       </form>
@@ -339,8 +377,8 @@
               {{ marcaEditando ? 'Editar marca' : 'Nueva marca' }}
             </label>
             <input id="brandName" type="text" [ngModel]="marcaTexto" name="marcaTexto" (input)="actualizarTextoMarca($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre de marca">
-            @if (marcaError) {
-              <p class="text-xs text-red-500 mt-1">{{ marcaError }}</p>
+            @if (marcaError || marcaTextoError) {
+              <p class="text-xs text-red-500 mt-1">{{ marcaError || marcaTextoError }}</p>
             }
           </div>
           <div class="flex gap-2 sm:items-end">
@@ -423,8 +461,8 @@
               {{ categoriaEditando ? 'Editar categoría' : 'Nueva categoría' }}
             </label>
             <input id="categoryName" type="text" [ngModel]="categoriaTexto" name="categoriaTexto" (input)="actualizarTextoCategoria($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="Nombre de categoría">
-            @if (categoriaError) {
-              <p class="text-xs text-red-500 mt-1">{{ categoriaError }}</p>
+            @if (categoriaError || categoriaTextoError) {
+              <p class="text-xs text-red-500 mt-1">{{ categoriaError || categoriaTextoError }}</p>
             }
           </div>
           <div class="flex gap-2 sm:items-end">

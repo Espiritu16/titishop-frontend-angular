@@ -8,6 +8,7 @@ import { AuthService } from '../../core/auth.service';
 import { ConfirmacionService } from '../../core/confirmacion.service';
 import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { debeMostrarError, mensajeErrorCampo } from '../../core/form-error';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import {
   calcularStockFinalMovimiento,
@@ -40,6 +41,7 @@ export class Movimientos implements OnDestroy {
   busquedaProducto = '';
   dropdownProductoAbierto = false;
   productoSeleccionado: ProductoResponse | null = null;
+  movimientoFormEnviado = false;
 
   movimientos: MovimientoResponse[] = [];
   productos: ProductoResponse[] = [];
@@ -131,6 +133,35 @@ export class Movimientos implements OnDestroy {
       (!requiereProveedor || !!value.proveedorId) &&
       (!requiereStockDestino || value.stockDestino >= 1)
     );
+  }
+
+  movimientoFieldError(nombre: keyof typeof this.movimientoForm.controls): string {
+    const mensajes = {
+      tipo: { required: 'Selecciona el tipo de movimiento.' },
+      productoId: { required: 'Selecciona un producto.' },
+      proveedorId: { required: 'Selecciona un proveedor para la entrada.' },
+      cantidad: {
+        required: 'Ingresa la cantidad.',
+        min: 'La cantidad debe ser mayor a 0.',
+        max: `La cantidad no debe superar ${this.valorMaximoMovimiento}.`,
+      },
+      stockDestino: {
+        required: 'Ingresa el stock destino.',
+        min: 'El stock destino debe ser mayor a 0.',
+        max: `El stock destino no debe superar ${this.valorMaximoMovimiento}.`,
+      },
+      motivo: {
+        required: 'Ingresa el motivo del movimiento.',
+        minlength: 'El motivo debe tener al menos 4 caracteres.',
+        maxlength: 'El motivo no debe superar 255 caracteres.',
+      },
+    } satisfies Partial<Record<keyof typeof this.movimientoForm.controls, Record<string, string>>>;
+
+    return mensajeErrorCampo(this.movimientoForm.controls[nombre], mensajes[nombre], this.movimientoFormEnviado);
+  }
+
+  movimientoFieldInvalid(nombre: keyof typeof this.movimientoForm.controls): boolean {
+    return debeMostrarError(this.movimientoForm.controls[nombre], this.movimientoFormEnviado);
   }
 
   get inventarioSeleccionado(): InventarioResponse | null {
@@ -263,6 +294,7 @@ export class Movimientos implements OnDestroy {
 
   async registrarMovimiento(): Promise<void> {
     if (this.enviando) return;
+    this.movimientoFormEnviado = true;
     if (!this.puedeGuardar) {
       this.movimientoForm.markAllAsTouched();
       this.notificacion.error(this.mensajeValidacionMovimiento());
@@ -342,6 +374,7 @@ export class Movimientos implements OnDestroy {
 
   cerrarModal(): void {
     this.mostrarModal = false;
+    this.movimientoFormEnviado = false;
     this.movimientoForm.reset({
       tipo: 'ENTRADA',
       productoId: '',
@@ -442,19 +475,36 @@ export class Movimientos implements OnDestroy {
   private configurarTipoMovimiento(tipo: TipoMovimiento): void {
     if (tipo === 'ENTRADA') {
       this.movimientoForm.controls.proveedorId.enable({ emitEvent: false });
+      this.movimientoForm.controls.proveedorId.setValidators([Validators.required]);
     } else {
       this.movimientoForm.controls.proveedorId.setValue('', { emitEvent: false });
+      this.movimientoForm.controls.proveedorId.clearValidators();
       this.movimientoForm.controls.proveedorId.disable({ emitEvent: false });
     }
+    this.movimientoForm.controls.proveedorId.updateValueAndValidity({ emitEvent: false });
 
     if (tipo === 'AJUSTE') {
       this.movimientoForm.controls.stockDestino.enable({ emitEvent: false });
+      this.movimientoForm.controls.stockDestino.setValidators([
+        Validators.required,
+        Validators.min(1),
+        Validators.max(MOVIMIENTO_STOCK_MAXIMO),
+      ]);
+      this.movimientoForm.controls.cantidad.clearValidators();
       this.movimientoForm.controls.cantidad.disable({ emitEvent: false });
     } else {
       this.movimientoForm.controls.stockDestino.setValue(1, { emitEvent: false });
+      this.movimientoForm.controls.stockDestino.clearValidators();
       this.movimientoForm.controls.stockDestino.disable({ emitEvent: false });
+      this.movimientoForm.controls.cantidad.setValidators([
+        Validators.required,
+        Validators.min(1),
+        Validators.max(MOVIMIENTO_STOCK_MAXIMO),
+      ]);
       this.movimientoForm.controls.cantidad.enable({ emitEvent: false });
     }
+    this.movimientoForm.controls.cantidad.updateValueAndValidity({ emitEvent: false });
+    this.movimientoForm.controls.stockDestino.updateValueAndValidity({ emitEvent: false });
   }
 
   private mensajeValidacionMovimiento(): string {

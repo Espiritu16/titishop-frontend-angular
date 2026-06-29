@@ -7,6 +7,7 @@ import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
 import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { debeMostrarError, mensajeErrorCampo } from '../../core/form-error';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos, listarTodasLasPaginas } from '../../core/listado-utils';
 import { EstadoInventario, EstadoProducto, EstadoStockInventario, InventarioResponse, ProductoResponse } from '../../core/models';
 import { NotificacionService } from '../../core/notificacion.service';
@@ -33,6 +34,7 @@ export class Inventario implements OnDestroy {
   productoSeleccionado: ProductoResponse | null = null;
   mostrarModal = false;
   enviando = false;
+  inventarioFormEnviado = false;
   inventarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
   filtrosInventario = {
     busqueda: '',
@@ -87,6 +89,31 @@ export class Inventario implements OnDestroy {
 
   productoInactivo(item: InventarioResponse): boolean {
     return this.productoEstado(item) === 'INACTIVO';
+  }
+
+  inventarioFieldError(nombre: keyof typeof this.inventarioForm.controls): string {
+    const mensajes = {
+      productoId: { required: 'Selecciona un producto.' },
+      stockActual: {
+        required: 'Ingresa el stock actual.',
+        min: 'El stock actual no puede ser negativo.',
+      },
+      stockMinimo: {
+        required: 'Ingresa el stock minimo.',
+        min: 'El stock minimo no puede ser negativo.',
+      },
+      ubicacion: {
+        required: 'Ingresa la ubicacion del producto.',
+        minlength: 'La ubicacion debe tener al menos 2 caracteres.',
+        maxlength: 'La ubicacion no debe superar 40 caracteres.',
+      },
+    } satisfies Partial<Record<keyof typeof this.inventarioForm.controls, Record<string, string>>>;
+
+    return mensajeErrorCampo(this.inventarioForm.controls[nombre], mensajes[nombre], this.inventarioFormEnviado);
+  }
+
+  inventarioFieldInvalid(nombre: keyof typeof this.inventarioForm.controls): boolean {
+    return debeMostrarError(this.inventarioForm.controls[nombre], this.inventarioFormEnviado);
   }
 
   cargarDatos(): void {
@@ -163,6 +190,7 @@ export class Inventario implements OnDestroy {
 
   guardarInventario(): void {
     if (this.enviando) return;
+    this.inventarioFormEnviado = true;
     if (this.inventarioForm.invalid) {
       this.inventarioForm.markAllAsTouched();
       this.notificacion.error('Completa correctamente los campos obligatorios.');
@@ -215,6 +243,7 @@ export class Inventario implements OnDestroy {
 
   editarInventario(item: InventarioResponse): void {
     this.editandoId = item.id;
+    this.inventarioFormEnviado = false;
     this.mostrarModal = true;
     this.inventarioForm.setValue({
       productoId: item.productoId,
@@ -236,6 +265,7 @@ export class Inventario implements OnDestroy {
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.editandoId = null;
+    this.inventarioFormEnviado = false;
     this.inventarioSnapshotOriginal = null;
     this.inventarioForm.controls.productoId.enable({ emitEvent: false });
     this.inventarioForm.controls.stockActual.enable({ emitEvent: false });
