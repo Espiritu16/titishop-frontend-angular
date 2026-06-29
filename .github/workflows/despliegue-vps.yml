@@ -1,0 +1,46 @@
+name: Despliegue automatico en VPS
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: titishop-vps-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Actualizar VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Desplegar backend y frontend
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            cd "${{ secrets.VPS_PROJECT_PATH }}"
+
+            git -C backend fetch origin dev
+            git -C backend checkout dev
+            git -C backend pull --ff-only origin dev
+
+            git -C frontend fetch origin dev
+            git -C frontend checkout dev
+            git -C frontend pull --ff-only origin dev
+
+            mkdir -p backups
+            if docker compose ps mysql --status running >/dev/null 2>&1; then
+              docker compose exec -T mysql sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "backups/titishop_pre_deploy_$(date +%Y%m%d_%H%M%S).sql"
+            fi
+
+            docker compose up -d --build backend frontend
+            docker compose ps
