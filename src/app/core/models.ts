@@ -108,6 +108,9 @@ export interface ProductoResponse {
   categoriaNombre: string;
   marcaId: string;
   marcaNombre: string;
+  proveedorId: string;
+  proveedorRazonSocial: string;
+  paisOrigen: string;
   precioCompra: number;
   precioVenta: number;
   estado: EstadoProducto;
@@ -122,6 +125,8 @@ export interface CrearProductoRequest {
   imagenUrl?: string | null;
   categoriaId: string;
   marcaId: string;
+  proveedorId: string;
+  paisOrigen: string;
   precioCompra: number;
   precioVenta: number;
 }

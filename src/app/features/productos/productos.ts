@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { finalize, forkJoin, Observable, of, switchMap } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
@@ -16,10 +17,12 @@ import {
   EstadoProducto,
   MarcaResponse,
   ProductoResponse,
+  ProveedorResponse,
 } from '../../core/models';
 import { CategoriasService } from './categorias.service';
 import { MarcasService } from './marcas.service';
 import { ProductosService } from './productos.service';
+import { ProveedoresService } from '../proveedores/proveedores.service';
 
 @Component({
   host: { class: 'flex-1 flex flex-col overflow-hidden min-h-0' },
@@ -42,6 +45,7 @@ export class Productos implements OnDestroy {
   categoriasModal: CategoriaResponse[] = [];
   marcas: MarcaResponse[] = [];
   marcasModal: MarcaResponse[] = [];
+  proveedores: ProveedorResponse[] = [];
   categoriaError = '';
   categoriaMensaje = '';
   categoriaTexto = '';
@@ -71,6 +75,7 @@ export class Productos implements OnDestroy {
     estado: 'TODOS' as FiltroTodos<EstadoProducto>,
     categoriaId: 'TODOS',
     marcaId: 'TODOS',
+    proveedorId: 'TODOS',
   };
 
   readonly productoForm;
@@ -93,6 +98,8 @@ export class Productos implements OnDestroy {
     private productosService: ProductosService,
     private categoriasService: CategoriasService,
     private marcasService: MarcasService,
+    private proveedoresService: ProveedoresService,
+    private router: Router,
     private confirmacion: ConfirmacionService,
     private notificacion: NotificacionService
   ) {
@@ -103,6 +110,8 @@ export class Productos implements OnDestroy {
       imagenUrl: ['', [Validators.maxLength(500)]],
       categoriaId: ['', [Validators.required]],
       marcaId: ['', [Validators.required]],
+      proveedorId: ['', [Validators.required]],
+      paisOrigen: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
       precioCompra: [0, [Validators.required, Validators.min(0)]],
       precioVenta: [0, [Validators.required, Validators.min(0)]],
     });
@@ -117,6 +126,10 @@ export class Productos implements OnDestroy {
     return this.marcas.filter((marca) => marca.estado === 'ACTIVO');
   }
 
+  get proveedoresActivos(): ProveedorResponse[] {
+    return this.proveedores.filter((proveedor) => proveedor.estado === 'ACTIVO');
+  }
+
   get opcionesCategoriaProducto(): CategoriaResponse[] {
     const seleccionada = this.productoForm.controls.categoriaId.value;
     const categoria = this.categorias.find((item) => item.id === seleccionada);
@@ -129,6 +142,13 @@ export class Productos implements OnDestroy {
     const marca = this.marcas.find((item) => item.id === seleccionada);
     if (!marca || marca.estado === 'ACTIVO') return this.marcasActivas;
     return [marca, ...this.marcasActivas];
+  }
+
+  get opcionesProveedorProducto(): ProveedorResponse[] {
+    const seleccionado = this.productoForm.controls.proveedorId.value;
+    const proveedor = this.proveedores.find((item) => item.id === seleccionado);
+    if (!proveedor || proveedor.estado === 'ACTIVO') return this.proveedoresActivos;
+    return [proveedor, ...this.proveedoresActivos];
   }
 
   get categoriaEditando(): CategoriaResponse | null {
@@ -153,6 +173,7 @@ export class Productos implements OnDestroy {
       estado: 'TODOS',
       categoriaId: 'TODOS',
       marcaId: 'TODOS',
+      proveedorId: 'TODOS',
     };
     this.irAPagina(0);
   }
@@ -201,17 +222,20 @@ export class Productos implements OnDestroy {
         estado: this.filtrosProducto.estado,
         categoriaId: this.filtrosProducto.categoriaId,
         marcaId: this.filtrosProducto.marcaId,
+        proveedorId: this.filtrosProducto.proveedorId,
       }),
       categorias: listarTodasLasPaginas((page, size) => this.categoriasService.listar({ page, size })),
       marcas: listarTodasLasPaginas((page, size) => this.marcasService.listar({ page, size })),
+      proveedores: listarTodasLasPaginas((page, size) => this.proveedoresService.listar({ page, size })),
     }).subscribe({
-      next: ({ productos, categorias, marcas }) => {
+      next: ({ productos, categorias, marcas, proveedores }) => {
         this.productos = productos.content;
         this.paginaActual = productos.page;
         this.totalPaginas = productos.totalPages;
         this.totalRegistros = productos.totalElements;
         this.categorias = categorias;
         this.marcas = marcas;
+        this.proveedores = proveedores;
         if (!this.mostrarModalCategorias) {
           this.categoriasModal = categorias.slice(0, this.pageSize);
           this.categoriaPaginaActual = 0;
@@ -279,6 +303,8 @@ export class Productos implements OnDestroy {
       imagenUrl: this.normalizarOpcional(value.imagenUrl),
       categoriaId: value.categoriaId,
       marcaId: value.marcaId,
+      proveedorId: value.proveedorId,
+      paisOrigen: this.normalizarTexto(value.paisOrigen),
       precioCompra: value.precioCompra,
       precioVenta: value.precioVenta,
     };
@@ -339,6 +365,8 @@ export class Productos implements OnDestroy {
       imagenUrl: producto.imagenUrl ?? '',
       categoriaId: producto.categoriaId,
       marcaId: producto.marcaId,
+      proveedorId: producto.proveedorId,
+      paisOrigen: producto.paisOrigen,
       precioCompra: producto.precioCompra,
       precioVenta: producto.precioVenta,
     });
@@ -349,6 +377,8 @@ export class Productos implements OnDestroy {
       imagenUrl: producto.imagenUrl ?? null,
       categoriaId: producto.categoriaId,
       marcaId: producto.marcaId,
+      proveedorId: producto.proveedorId,
+      paisOrigen: producto.paisOrigen,
       precioCompra: producto.precioCompra,
       precioVenta: producto.precioVenta,
       estado: producto.estado,
@@ -368,6 +398,8 @@ export class Productos implements OnDestroy {
       imagenUrl: '',
       categoriaId: this.categoriasActivas[0]?.id ?? '',
       marcaId: this.marcasActivas[0]?.id ?? '',
+      proveedorId: this.proveedoresActivos[0]?.id ?? '',
+      paisOrigen: '',
       precioCompra: 0,
       precioVenta: 0,
     });
@@ -696,12 +728,24 @@ export class Productos implements OnDestroy {
     producto.imagenUrl = '';
   }
 
+  verHistorialProducto(producto: ProductoResponse): void {
+    void this.router.navigate(['/movimientos'], {
+      queryParams: {
+        productoId: producto.id,
+        producto: producto.nombre,
+      },
+    });
+  }
+
   private asegurarCatalogosSeleccionados(): void {
     if (!this.productoForm.controls.categoriaId.value && this.categoriasActivas[0]) {
       this.productoForm.patchValue({ categoriaId: this.categoriasActivas[0].id });
     }
     if (!this.productoForm.controls.marcaId.value && this.marcasActivas[0]) {
       this.productoForm.patchValue({ marcaId: this.marcasActivas[0].id });
+    }
+    if (!this.productoForm.controls.proveedorId.value && this.proveedoresActivos[0]) {
+      this.productoForm.patchValue({ proveedorId: this.proveedoresActivos[0].id });
     }
   }
 

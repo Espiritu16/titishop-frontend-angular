@@ -19,6 +19,7 @@ export class MovimientosService {
     busqueda?: string;
     tipo?: TipoMovimiento | 'TODOS';
     anulado?: boolean;
+    productoId?: string;
   }): Observable<PaginaResponse<MovimientoResponse>> {
     return this.api.get<PaginaResponse<MovimientoResponse>>('/movimientos', {
       page: params?.page,
@@ -26,6 +27,7 @@ export class MovimientosService {
       busqueda: params?.busqueda,
       tipo: params?.tipo === 'TODOS' ? undefined : params?.tipo,
       anulado: params?.anulado,
+      productoId: params?.productoId,
     });
   }
 
@@ -33,11 +35,13 @@ export class MovimientosService {
     busqueda?: string;
     tipo?: TipoMovimiento | 'TODOS';
     anulado?: boolean;
+    productoId?: string;
   }): Observable<Blob> {
     return this.api.getBlob(`/exportaciones/movimientos/${formato}`, {
       busqueda: params?.busqueda,
       tipo: params?.tipo === 'TODOS' ? undefined : params?.tipo,
       anulado: params?.anulado,
+      productoId: params?.productoId,
     });
   }
 
