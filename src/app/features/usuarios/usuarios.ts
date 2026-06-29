@@ -6,6 +6,7 @@ import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
 import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { mensajeErrorCampo } from '../../core/form-error';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoCatalogo, RolUsuario, UsuarioResponse } from '../../core/models';
 import { NotificacionService } from '../../core/notificacion.service';
@@ -26,6 +27,7 @@ export class Usuarios implements OnDestroy {
   usuarioEditandoId: string | null = null;
   mostrarModal = false;
   enviando = false;
+  usuarioFormEnviado = false;
   usuarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
 
   readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
@@ -93,6 +95,30 @@ export class Usuarios implements OnDestroy {
     });
   }
 
+  usuarioFieldError(nombre: keyof typeof this.usuarioForm.controls): string {
+    const mensajes = {
+      nombreCompleto: {
+        required: 'Ingresa el nombre completo.',
+        minlength: 'El nombre debe tener al menos 3 caracteres.',
+        maxlength: 'El nombre no debe superar 120 caracteres.',
+        pattern: 'Usa solo letras y espacios para el nombre.',
+      },
+      email: {
+        required: 'Ingresa el correo del usuario.',
+        email: 'Ingresa un correo valido.',
+        maxlength: 'El correo no debe superar 160 caracteres.',
+      },
+      rol: { required: 'Selecciona un rol.' },
+      password: {
+        required: 'Ingresa una contrasena.',
+        minlength: 'La contrasena debe tener al menos 8 caracteres.',
+        maxlength: 'La contrasena no debe superar 120 caracteres.',
+      },
+    } satisfies Partial<Record<keyof typeof this.usuarioForm.controls, Record<string, string>>>;
+
+    return mensajeErrorCampo(this.usuarioForm.controls[nombre], mensajes[nombre], this.usuarioFormEnviado);
+  }
+
   limpiarFiltrosUsuarios(): void {
     this.filtrosUsuario = {
       busqueda: '',
@@ -129,6 +155,7 @@ export class Usuarios implements OnDestroy {
   }
 
   guardarUsuario(): void {
+    this.usuarioFormEnviado = true;
     if (this.usuarioForm.invalid) {
       this.usuarioForm.markAllAsTouched();
       this.notificacion.error('Completa correctamente los campos requeridos.');
@@ -182,6 +209,7 @@ export class Usuarios implements OnDestroy {
 
   editarUsuario(usuario: UsuarioResponse): void {
     this.usuarioEditandoId = usuario.id;
+    this.usuarioFormEnviado = false;
     this.mostrarModal = true;
     this.usuarioForm.setValue({
       nombreCompleto: usuario.nombreCompleto,
@@ -204,6 +232,7 @@ export class Usuarios implements OnDestroy {
   cancelarEdicion(): void {
     this.mostrarModal = false;
     this.usuarioEditandoId = null;
+    this.usuarioFormEnviado = false;
     this.usuarioSnapshotOriginal = null;
     this.usuarioForm.reset({
       nombreCompleto: '',

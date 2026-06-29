@@ -35,7 +35,7 @@
     <div class="bg-white rounded-xl border border-red-100 px-4 py-8 text-center text-sm text-red-500">{{ errorListado }}</div>
   } @else {
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-3 md:grid-cols-[minmax(220px,1fr)_170px_170px_auto]">
+      <div class="grid shrink-0 grid-cols-1 gap-3 border-b border-gray-100 p-3 xl:grid-cols-[minmax(220px,1fr)_170px_170px_auto]">
         <label class="relative block">
           <span class="sr-only">Buscar inventario</span>
           <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
@@ -224,21 +224,33 @@
               </div>
             }
           </div>
+          @if (inventarioFieldError('productoId')) {
+            <p class="mt-1 text-xs text-red-600">{{ inventarioFieldError('productoId') }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Stock actual *</label>
           <input type="number" formControlName="stockActual" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0">
+          @if (inventarioFieldError('stockActual')) {
+            <p class="mt-1 text-xs text-red-600">{{ inventarioFieldError('stockActual') }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Stock mínimo *</label>
           <input type="number" formControlName="stockMinimo" (keydown)="bloquearTeclasNumeroInvalido($event)" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="0">
+          @if (inventarioFieldError('stockMinimo')) {
+            <p class="mt-1 text-xs text-red-600">{{ inventarioFieldError('stockMinimo') }}</p>
+          }
         </div>
         <div class="sm:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Ubicación *</label>
           <input type="text" formControlName="ubicacion" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="A1-RACK-03">
+          @if (inventarioFieldError('ubicacion')) {
+            <p class="mt-1 text-xs text-red-600">{{ inventarioFieldError('ubicacion') }}</p>
+          }
         </div>
         <div class="sm:col-span-2 flex gap-3 pt-2 border-t border-gray-100">
-          <button type="submit" [disabled]="enviando || inventarioForm.invalid" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">Guardar</button>
+          <button type="submit" [disabled]="enviando" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">Guardar</button>
           <button type="button" (click)="cancelarEdicion()" class="flex-1 border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium py-2.5 rounded-lg transition-colors">Cancelar</button>
         </div>
       </form>

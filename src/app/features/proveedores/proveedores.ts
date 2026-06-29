@@ -6,6 +6,7 @@ import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
 import { descargarBlob, nombreArchivoExportacion } from '../../core/descarga-archivo';
 import { EstadoCarga } from '../../core/estado-carga';
+import { mensajeErrorCampo } from '../../core/form-error';
 import { AccionDebounced, crearAccionDebounced, FiltroTodos } from '../../core/listado-utils';
 import { EstadoProveedor, ProveedorResponse } from '../../core/models';
 import { NotificacionService } from '../../core/notificacion.service';
@@ -29,6 +30,7 @@ export class Proveedores implements OnDestroy {
   enviando = false;
   consultandoRuc = false;
   mostrarModal = false;
+  proveedorFormEnviado = false;
   proveedorSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
   filtrosProveedor = {
     busqueda: '',
@@ -164,6 +166,7 @@ export class Proveedores implements OnDestroy {
 
   guardarProveedor(): void {
     if (this.enviando) return;
+    this.proveedorFormEnviado = true;
 
     if (this.proveedorForm.invalid) {
       this.proveedorForm.markAllAsTouched();
@@ -217,6 +220,7 @@ export class Proveedores implements OnDestroy {
 
   editarProveedor(proveedor: ProveedorResponse): void {
     this.editandoId = proveedor.id;
+    this.proveedorFormEnviado = false;
     this.mostrarModal = true;
     this.proveedorForm.setValue({
       razonSocial: proveedor.razonSocial,
@@ -243,6 +247,7 @@ export class Proveedores implements OnDestroy {
     this.mensaje = '';
     this.errorRuc = '';
     this.editandoId = null;
+    this.proveedorFormEnviado = false;
     this.proveedorSnapshotOriginal = null;
     this.proveedorForm.reset({
       razonSocial: '',
@@ -316,20 +321,30 @@ export class Proveedores implements OnDestroy {
   }
 
   fieldError(controlName: keyof typeof this.proveedorForm.controls): string {
-    const control = this.proveedorForm.controls[controlName];
-    if (!control.touched || !control.errors) return '';
+    const mensajes = {
+      razonSocial: {
+        required: 'Consulta o ingresa la razon social.',
+        minlength: 'La razon social debe tener al menos 3 caracteres.',
+        maxlength: 'La razon social no debe superar 120 caracteres.',
+      },
+      ruc: {
+        required: 'Ingresa el RUC.',
+        pattern: 'El RUC debe tener 11 digitos.',
+      },
+      celular: { pattern: 'El celular debe tener 9 digitos.' },
+      telefono: { pattern: 'El telefono debe tener 9 digitos.' },
+      email: {
+        email: 'Ingresa un correo valido.',
+        maxlength: 'El correo no debe superar 160 caracteres.',
+      },
+      direccion: {
+        required: 'Consulta o ingresa la direccion.',
+        minlength: 'La direccion debe tener al menos 5 caracteres.',
+        maxlength: 'La direccion no debe superar 160 caracteres.',
+      },
+    } satisfies Partial<Record<keyof typeof this.proveedorForm.controls, Record<string, string>>>;
 
-    if (control.errors['required']) return 'Este campo es obligatorio.';
-    if (control.errors['pattern']) {
-      if (controlName === 'ruc') return 'El RUC debe tener 11 dígitos.';
-      if (controlName === 'celular') return 'El celular debe tener 9 dígitos.';
-      if (controlName === 'telefono') return 'El teléfono debe tener 9 dígitos.';
-    }
-    if (control.errors['email']) return 'Ingrese un correo válido.';
-    if (control.errors['minlength']) return 'El valor ingresado es demasiado corto.';
-    if (control.errors['maxlength']) return 'El valor ingresado es demasiado largo.';
-
-    return 'Revise este campo.';
+    return mensajeErrorCampo(this.proveedorForm.controls[controlName], mensajes[controlName], this.proveedorFormEnviado);
   }
 
   private mostrarToast(message: string, type: 'success' | 'error'): void {
