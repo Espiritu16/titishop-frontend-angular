@@ -14,6 +14,7 @@ export class ProductosService {
     estado?: EstadoProducto | 'TODOS';
     categoriaId?: string;
     marcaId?: string;
+    proveedorId?: string;
   }): Observable<PaginaResponse<ProductoResponse>> {
     return this.api.get<PaginaResponse<ProductoResponse>>('/productos', {
       page: params?.page,
@@ -22,6 +23,7 @@ export class ProductosService {
       estado: params?.estado === 'TODOS' ? undefined : params?.estado,
       categoriaId: params?.categoriaId === 'TODOS' ? undefined : params?.categoriaId,
       marcaId: params?.marcaId === 'TODOS' ? undefined : params?.marcaId,
+      proveedorId: params?.proveedorId === 'TODOS' ? undefined : params?.proveedorId,
     });
   }
 
@@ -30,12 +32,14 @@ export class ProductosService {
     estado?: EstadoProducto | 'TODOS';
     categoriaId?: string;
     marcaId?: string;
+    proveedorId?: string;
   }): Observable<Blob> {
     return this.api.getBlob(`/exportaciones/productos/${formato}`, {
       busqueda: params?.busqueda,
       estado: params?.estado === 'TODOS' ? undefined : params?.estado,
       categoriaId: params?.categoriaId === 'TODOS' ? undefined : params?.categoriaId,
       marcaId: params?.marcaId === 'TODOS' ? undefined : params?.marcaId,
+      proveedorId: params?.proveedorId === 'TODOS' ? undefined : params?.proveedorId,
     });
   }
 

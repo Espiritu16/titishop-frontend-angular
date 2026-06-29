@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { getApiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -48,7 +49,9 @@ export class Movimientos implements OnDestroy {
     busqueda: '',
     tipo: 'TODOS' as FiltroTodos<TipoMovimiento>,
     estado: 'TODOS' as FiltroTodos<'VIGENTE' | 'ANULADO'>,
+    productoId: undefined as string | undefined,
   };
+  productoHistorialNombre = '';
 
   readonly tiposMovimiento: TipoMovimiento[] = ['ENTRADA', 'SALIDA', 'AJUSTE'];
   readonly tiposMovimientoFiltro: Array<FiltroTodos<TipoMovimiento>> = ['TODOS', ...this.tiposMovimiento];
@@ -66,6 +69,7 @@ export class Movimientos implements OnDestroy {
     private productosService: ProductosService,
     private proveedoresService: ProveedoresService,
     private inventarioService: InventarioService,
+    private route: ActivatedRoute,
     public auth: AuthService,
     private confirmacion: ConfirmacionService,
     private notificacion: NotificacionService
@@ -81,6 +85,12 @@ export class Movimientos implements OnDestroy {
     this.movimientoForm.controls.tipo.valueChanges.subscribe((tipo) => {
       this.configurarTipoMovimiento(tipo);
     });
+    const productoId = this.route.snapshot.queryParamMap.get('productoId') ?? undefined;
+    const producto = this.route.snapshot.queryParamMap.get('producto') ?? '';
+    if (productoId) {
+      this.filtrosMovimiento.productoId = productoId;
+      this.productoHistorialNombre = producto;
+    }
     this.configurarTipoMovimiento('ENTRADA');
     this.cargarDatos();
   }
@@ -182,6 +192,7 @@ export class Movimientos implements OnDestroy {
           this.filtrosMovimiento.estado === 'TODOS'
             ? undefined
             : this.filtrosMovimiento.estado === 'ANULADO',
+        productoId: this.filtrosMovimiento.productoId,
       }),
       productos: listarTodasLasPaginas((page, size) => this.productosService.listar({ page, size })),
       proveedores: listarTodasLasPaginas((page, size) => this.proveedoresService.listar({ page, size })),
@@ -218,7 +229,9 @@ export class Movimientos implements OnDestroy {
       busqueda: '',
       tipo: 'TODOS',
       estado: 'TODOS',
+      productoId: undefined,
     };
+    this.productoHistorialNombre = '';
     this.irAPagina(0);
   }
 
@@ -494,6 +507,7 @@ export class Movimientos implements OnDestroy {
       busqueda: this.filtrosMovimiento.busqueda,
       tipo: this.filtrosMovimiento.tipo,
       anulado: this.filtrosMovimiento.estado === 'TODOS' ? undefined : this.filtrosMovimiento.estado === 'ANULADO',
+      productoId: this.filtrosMovimiento.productoId,
     }).subscribe({
       next: (blob) => {
         descargarBlob(blob, nombreArchivoExportacion('movimientos', tipo));
