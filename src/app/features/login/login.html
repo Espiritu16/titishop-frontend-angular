@@ -9,28 +9,88 @@
         <p class="m-0 text-sm leading-relaxed text-slate-600">Gestión moderna de inventario para operaciones internas.</p>
       </div>
       <div class="p-6 md:p-10">
-        <h5 class="mb-1 text-lg font-bold text-slate-800">Bienvenido</h5>
-        <p class="mb-6 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
-        <form (ngSubmit)="submit()" class="space-y-4">
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-600">Correo</label>
-            <input [(ngModel)]="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="email" autocomplete="username" required />
-          </div>
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-600">Contraseña</label>
-            <input [(ngModel)]="password" name="password" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="password" autocomplete="current-password" required />
-          </div>
-          @if (error) {
-            <div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</div>
-          }
-          @if (message) {
-            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</div>
-          }
-          <button class="w-full rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 px-4 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(79,131,212,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60" type="submit" [disabled]="!canSubmit">
-            {{ loading ? 'Ingresando...' : 'Ingresar al sistema' }}
-          </button>
-        </form>
-        <small class="mt-4 block text-xs text-slate-500">Usuario backend: kevin@gmail.com / kevin123</small>
+        @if (!recuperacionActiva) {
+          <h5 class="mb-1 text-lg font-bold text-slate-800">Bienvenido</h5>
+          <p class="mb-6 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
+          <form (ngSubmit)="submit()" class="space-y-4">
+            <div>
+              <label class="mb-1 block text-sm font-semibold text-slate-600">Correo</label>
+              <input [(ngModel)]="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="email" autocomplete="username" required />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-semibold text-slate-600">Contraseña</label>
+              <div class="relative">
+                <input [(ngModel)]="password" name="password" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 pr-11 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" [type]="mostrarPassword ? 'text' : 'password'" autocomplete="current-password" required />
+                <button type="button" (click)="togglePasswordVisibility()" [attr.aria-label]="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="mostrarPassword" class="absolute inset-y-0 right-2 my-auto grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
+                  <i class="bi" [class.bi-eye]="!mostrarPassword" [class.bi-eye-slash]="mostrarPassword"></i>
+                </button>
+              </div>
+            </div>
+            <button type="button" (click)="iniciarRecuperacion()" class="text-sm font-semibold text-sky-600 transition hover:text-sky-700">¿Olvidaste tu contraseña?</button>
+            @if (error) {
+              <div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</div>
+            }
+            @if (message) {
+              <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</div>
+            }
+            <button class="w-full rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 px-4 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(79,131,212,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60" type="submit" [disabled]="!canSubmit">
+              {{ loading ? 'Ingresando...' : 'Ingresar al sistema' }}
+            </button>
+          </form>
+          <small class="mt-4 block text-xs text-slate-500">Usuario backend: kevin@gmail.com / kevin123</small>
+        } @else {
+          <h5 class="mb-1 text-lg font-bold text-slate-800">Recuperar contraseña</h5>
+          <p class="mb-6 text-sm text-slate-500">
+            @if (recuperacionPaso === 'email') {
+              Ingresa tu correo para recibir un codigo.
+            } @else if (recuperacionPaso === 'codigo') {
+              Ingresa el codigo de 6 digitos enviado a tu correo.
+            } @else {
+              Define tu nueva contrasena.
+            }
+          </p>
+          <form (ngSubmit)="submitRecuperacion()" class="space-y-4">
+            @if (recuperacionPaso === 'email') {
+              <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-600">Correo</label>
+                <input [(ngModel)]="recuperacionEmail" name="recuperacionEmail" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="email" autocomplete="username" required />
+              </div>
+            }
+            @if (recuperacionPaso === 'codigo') {
+              <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-600">Codigo</label>
+                <input [(ngModel)]="recuperacionCodigo" name="recuperacionCodigo" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-center font-mono text-lg tracking-[0.35em] outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
+              </div>
+            }
+            @if (recuperacionPaso === 'password') {
+              <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
+                <div class="relative">
+                  <input [(ngModel)]="recuperacionNuevaPassword" name="recuperacionNuevaPassword" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 pr-11 text-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" [type]="mostrarRecuperacionPassword ? 'text' : 'password'" autocomplete="new-password" required />
+                  <button type="button" (click)="toggleRecuperacionPasswordVisibility()" [attr.aria-label]="mostrarRecuperacionPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="mostrarRecuperacionPassword" class="absolute inset-y-0 right-2 my-auto grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
+                    <i class="bi" [class.bi-eye]="!mostrarRecuperacionPassword" [class.bi-eye-slash]="mostrarRecuperacionPassword"></i>
+                  </button>
+                </div>
+              </div>
+            }
+            @if (error) {
+              <div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</div>
+            }
+            @if (message) {
+              <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ message }}</div>
+            }
+            <button class="w-full rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 px-4 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(79,131,212,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60" type="submit" [disabled]="loading">
+              @if (recuperacionPaso === 'email') {
+                {{ loading ? 'Enviando...' : 'Enviar codigo' }}
+              } @else if (recuperacionPaso === 'codigo') {
+                {{ loading ? 'Validando...' : 'Validar codigo' }}
+              } @else {
+                {{ loading ? 'Actualizando...' : 'Actualizar contraseña' }}
+              }
+            </button>
+            <button type="button" (click)="volverLogin()" class="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Volver al login</button>
+          </form>
+        }
       </div>
     </div>
   </div>

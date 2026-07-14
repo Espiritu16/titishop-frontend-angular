@@ -176,7 +176,7 @@
           </div>
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-600 mb-1">Dirección *</label>
-            <input type="text" formControlName="direccion" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none" placeholder="Se completa al consultar el RUC">
+            <textarea formControlName="direccion" readonly rows="3" class="w-full min-h-24 resize-y border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none" placeholder="Se completa al consultar el RUC"></textarea>
             @if (fieldError('direccion')) {
               <p class="mt-1 text-xs text-red-600">{{ fieldError('direccion') }}</p>
             }
@@ -202,6 +202,9 @@
               <p class="mt-1 text-xs text-red-600">{{ fieldError('email') }}</p>
             }
           </div>
+          @if (contactoError()) {
+            <p class="sm:col-span-2 text-xs text-red-600">{{ contactoError() }}</p>
+          }
         </div>
         <div class="flex gap-3 pt-4 mt-4 border-t border-gray-100">
           <button type="submit" [disabled]="enviando || consultandoRuc" class="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">{{ editandoId ? 'Actualizar' : 'Guardar' }}</button>

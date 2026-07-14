@@ -247,13 +247,6 @@
               <p class="mt-1 text-xs text-red-600">{{ productoFieldError('sku') }}</p>
             }
           </div>
-	          <div>
-	            <label class="block text-sm font-medium text-gray-600 mb-1">URL de la imagen</label>
-	            <input type="url" formControlName="imagenUrl" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400" placeholder="https://...">
-	            @if (productoFieldError('imagenUrl')) {
-	              <p class="mt-1 text-xs text-red-600">{{ productoFieldError('imagenUrl') }}</p>
-	            }
-	          </div>
 	          <div class="sm:col-span-2">
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Subir imagen</label>
 	            <div class="image-upload">
@@ -275,7 +268,7 @@
 	            @if (imagenProductoError) {
 	              <p class="mt-1 text-xs text-red-600">{{ imagenProductoError }}</p>
 	            }
-	            <p class="mt-1 text-xs text-gray-500">JPG, PNG, WEBP o GIF. Máximo 5 MB. Si seleccionas un archivo, reemplazará la URL al guardar.</p>
+	            <p class="mt-1 text-xs text-gray-500">JPG, PNG, WEBP o GIF. Máximo 5 MB.</p>
 	          </div>
 	          <div>
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>

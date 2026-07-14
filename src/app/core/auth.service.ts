@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { apiUrl } from './api.config';
-import { LoginResponse, Role, SessionUser } from './models';
+import { LoginResponse, MensajeResponse, Role, SessionUser, ValidarCodigoRecuperacionResponse } from './models';
 
 const TOKEN_SESION_KEY = 'token_sesion';
 const USUARIO_SESION_KEY = 'usuario_sesion';
@@ -40,6 +40,27 @@ export class AuthService {
           sessionStorage.setItem(USUARIO_SESION_KEY, JSON.stringify(session));
         })
       );
+  }
+
+  solicitarRecuperacionPassword(email: string): Observable<MensajeResponse> {
+    return this.http.post<MensajeResponse>(apiUrl('/autenticacion/recuperacion/solicitar'), {
+      email: email.trim().toLowerCase(),
+    });
+  }
+
+  validarCodigoRecuperacion(email: string, codigo: string): Observable<ValidarCodigoRecuperacionResponse> {
+    return this.http.post<ValidarCodigoRecuperacionResponse>(apiUrl('/autenticacion/recuperacion/validar'), {
+      email: email.trim().toLowerCase(),
+      codigo: codigo.trim(),
+    });
+  }
+
+  restablecerPassword(email: string, resetToken: string, nuevaPassword: string): Observable<MensajeResponse> {
+    return this.http.post<MensajeResponse>(apiUrl('/autenticacion/recuperacion/restablecer'), {
+      email: email.trim().toLowerCase(),
+      resetToken,
+      nuevaPassword,
+    });
   }
 
   token(): string | null {
