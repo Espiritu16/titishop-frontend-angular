@@ -113,7 +113,6 @@ export class Productos implements OnDestroy {
       nombre: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
       sku: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(40)]],
       descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(2000)]],
-      imagenUrl: ['', [Validators.maxLength(500)]],
       categoriaId: ['', [Validators.required]],
       marcaId: ['', [Validators.required]],
       proveedorId: ['', [Validators.required]],
@@ -207,9 +206,6 @@ export class Productos implements OnDestroy {
         required: 'Ingresa una descripcion del producto.',
         minlength: 'La descripcion debe tener al menos 3 caracteres.',
         maxlength: 'La descripcion no debe superar 2000 caracteres.',
-      },
-      imagenUrl: {
-        maxlength: 'La URL de imagen no debe superar 500 caracteres.',
       },
       categoriaId: { required: 'Selecciona una categoria.' },
       marcaId: { required: 'Selecciona una marca.' },
@@ -366,7 +362,7 @@ export class Productos implements OnDestroy {
       nombre: this.normalizarTexto(value.nombre),
       sku: this.normalizarSku(value.sku),
       descripcion: this.normalizarTexto(value.descripcion),
-      imagenUrl: this.normalizarOpcional(value.imagenUrl),
+      imagenUrl: this.productos.find((producto) => producto.id === this.editandoId)?.imagenUrl ?? null,
       categoriaId: value.categoriaId,
       marcaId: value.marcaId,
       proveedorId: value.proveedorId,
@@ -429,7 +425,6 @@ export class Productos implements OnDestroy {
       nombre: producto.nombre,
       sku: producto.sku,
       descripcion: producto.descripcion,
-      imagenUrl: producto.imagenUrl ?? '',
       categoriaId: producto.categoriaId,
       marcaId: producto.marcaId,
       proveedorId: producto.proveedorId,
@@ -463,7 +458,6 @@ export class Productos implements OnDestroy {
       nombre: '',
       sku: '',
       descripcion: '',
-      imagenUrl: '',
       categoriaId: this.categoriasActivas[0]?.id ?? '',
       marcaId: this.marcasActivas[0]?.id ?? '',
       proveedorId: this.proveedoresActivos[0]?.id ?? '',
@@ -871,11 +865,6 @@ export class Productos implements OnDestroy {
 
   private normalizarSku(value: string): string {
     return value.trim().replace(/\s+/g, '-').toUpperCase();
-  }
-
-  private normalizarOpcional(value: string): string | null {
-    const normalized = value.trim();
-    return normalized ? normalized : null;
   }
 
   private normalizarNombreCatalogo(value: string): string {

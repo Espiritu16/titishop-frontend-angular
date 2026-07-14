@@ -3,10 +3,10 @@ import { inject } from '@angular/core';
 import { AuthService } from '../auth.service';
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
-  const token = inject(AuthService).token();
-  if (!token || request.url.includes('/autenticacion/login')) {
-    return next(request);
-  }
+	const token = inject(AuthService).token();
+	if (!token || request.url.includes('/autenticacion/')) {
+		return next(request);
+	}
 
   return next(
     request.clone({

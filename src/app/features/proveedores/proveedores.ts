@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnDestroy } from '@angular/core';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { getApiErrorMessage } from '../../core/api-error';
 import { hayCambios, normalizarSnapshot } from '../../core/cambios-formulario';
 import { ConfirmacionService } from '../../core/confirmacion.service';
@@ -57,7 +57,7 @@ export class Proveedores implements OnDestroy {
       telefono: ['', [Validators.pattern(/^\d{9}$/)]],
       email: ['', [Validators.email, Validators.maxLength(160)]],
       direccion: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(160)]],
-    });
+    }, { validators: Proveedores.contactoRequerido });
     this.cargarProveedores();
   }
 
@@ -345,6 +345,19 @@ export class Proveedores implements OnDestroy {
     } satisfies Partial<Record<keyof typeof this.proveedorForm.controls, Record<string, string>>>;
 
     return mensajeErrorCampo(this.proveedorForm.controls[controlName], mensajes[controlName], this.proveedorFormEnviado);
+  }
+
+  contactoError(): string {
+    if (!this.proveedorForm.errors?.['contactoRequerido']) return '';
+    if (!this.proveedorFormEnviado && !this.proveedorForm.dirty && !this.proveedorForm.touched) return '';
+    return 'Ingresa al menos un celular, teléfono o correo.';
+  }
+
+  private static contactoRequerido(control: AbstractControl): ValidationErrors | null {
+    const celular = `${control.get('celular')?.value ?? ''}`.trim();
+    const telefono = `${control.get('telefono')?.value ?? ''}`.trim();
+    const email = `${control.get('email')?.value ?? ''}`.trim();
+    return celular || telefono || email ? null : { contactoRequerido: true };
   }
 
   private mostrarToast(message: string, type: 'success' | 'error'): void {

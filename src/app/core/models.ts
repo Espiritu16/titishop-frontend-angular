@@ -34,6 +34,14 @@ export interface LoginResponse {
   rol: RolUsuario;
 }
 
+export interface MensajeResponse {
+  mensaje: string;
+}
+
+export interface ValidarCodigoRecuperacionResponse {
+  resetToken: string;
+}
+
 export interface ApiErrorResponse {
   timestamp: string;
   status: number;

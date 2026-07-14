@@ -28,6 +28,7 @@ export class Usuarios implements OnDestroy {
   mostrarModal = false;
   enviando = false;
   usuarioFormEnviado = false;
+  mostrarPassword = false;
   usuarioSnapshotOriginal: Record<string, string | number | boolean | null> | null = null;
 
   readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'ALMACENERO', 'SUPERVISOR'];
@@ -136,6 +137,10 @@ export class Usuarios implements OnDestroy {
     this.busquedaDebounced.schedule();
   }
 
+  togglePasswordVisibility(): void {
+    this.mostrarPassword = !this.mostrarPassword;
+  }
+
   ngOnDestroy(): void {
     this.busquedaDebounced.destroy();
   }
@@ -210,6 +215,7 @@ export class Usuarios implements OnDestroy {
   editarUsuario(usuario: UsuarioResponse): void {
     this.usuarioEditandoId = usuario.id;
     this.usuarioFormEnviado = false;
+    this.mostrarPassword = false;
     this.mostrarModal = true;
     this.usuarioForm.setValue({
       nombreCompleto: usuario.nombreCompleto,
@@ -233,6 +239,7 @@ export class Usuarios implements OnDestroy {
     this.mostrarModal = false;
     this.usuarioEditandoId = null;
     this.usuarioFormEnviado = false;
+    this.mostrarPassword = false;
     this.usuarioSnapshotOriginal = null;
     this.usuarioForm.reset({
       nombreCompleto: '',
