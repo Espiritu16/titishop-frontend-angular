@@ -29,6 +29,9 @@ jobs:
 
             cd "${{ secrets.VPS_PROJECT_PATH }}"
 
+            exec 9>/tmp/titishop-vps-deploy.lock
+            flock -w 540 9
+
             git -C backend fetch origin dev
             git -C backend checkout dev
             git -C backend pull --ff-only origin dev
