@@ -42,11 +42,11 @@
           <h5 class="mb-1 text-lg font-bold text-slate-800">Recuperar contraseña</h5>
           <p class="mb-6 text-sm text-slate-500">
             @if (recuperacionPaso === 'email') {
-              Ingresa tu correo para recibir un codigo.
+              Ingresa tu correo para recibir un código.
             } @else if (recuperacionPaso === 'codigo') {
-              Ingresa el codigo de 6 digitos enviado a tu correo.
+              Ingresa el código de 6 dígitos enviado a tu correo.
             } @else {
-              Define tu nueva contrasena.
+              Define tu nueva contraseña.
             }
           </p>
           <form (ngSubmit)="submitRecuperacion()" class="space-y-4">
@@ -58,7 +58,7 @@
             }
             @if (recuperacionPaso === 'codigo') {
               <div>
-                <label class="mb-1 block text-sm font-semibold text-slate-600">Codigo</label>
+                <label class="mb-1 block text-sm font-semibold text-slate-600">Código</label>
                 <input [(ngModel)]="recuperacionCodigo" name="recuperacionCodigo" class="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 text-center font-mono text-lg tracking-[0.35em] outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
               </div>
             }
@@ -81,9 +81,9 @@
             }
             <button class="w-full rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 px-4 py-2.5 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(79,131,212,0.3)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60" type="submit" [disabled]="loading">
               @if (recuperacionPaso === 'email') {
-                {{ loading ? 'Enviando...' : 'Enviar codigo' }}
+                {{ loading ? 'Enviando...' : 'Enviar código' }}
               } @else if (recuperacionPaso === 'codigo') {
-                {{ loading ? 'Validando...' : 'Validar codigo' }}
+                {{ loading ? 'Validando...' : 'Validar código' }}
               } @else {
                 {{ loading ? 'Actualizando...' : 'Actualizar contraseña' }}
               }

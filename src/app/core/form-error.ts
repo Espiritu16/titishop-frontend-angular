@@ -4,12 +4,12 @@ type MensajesCampo = Partial<Record<string, string>>;
 
 const mensajesBase: Record<string, string> = {
   required: 'Este campo es obligatorio.',
-  email: 'Ingresa un correo valido.',
-  minlength: 'No cumple la longitud minima requerida.',
-  maxlength: 'Supera la longitud maxima permitida.',
+  email: 'Ingresa un correo válido.',
+  minlength: 'No cumple la longitud mínima requerida.',
+  maxlength: 'Supera la longitud máxima permitida.',
   min: 'El valor es menor al permitido.',
-  max: 'El valor supera el maximo permitido.',
-  pattern: 'El formato ingresado no es valido.',
+  max: 'El valor supera el máximo permitido.',
+  pattern: 'El formato ingresado no es válido.',
 };
 
 export function debeMostrarError(control: AbstractControl | null | undefined, formularioEnviado = false): boolean {

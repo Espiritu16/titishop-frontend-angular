@@ -169,9 +169,9 @@ export class Productos implements OnDestroy {
   get categoriaTextoError(): string {
     if (!this.categoriaFormEnviado && !this.categoriaTexto.trim()) return '';
     const nombre = this.normalizarNombreCatalogo(this.categoriaTexto);
-    if (!nombre) return 'Ingresa el nombre de la categoria.';
-    if (nombre.length < 2) return 'La categoria debe tener al menos 2 caracteres.';
-    if (nombre.length > 80) return 'La categoria no debe superar 80 caracteres.';
+    if (!nombre) return 'Ingresa el nombre de la categoría.';
+    if (nombre.length < 2) return 'La categoría debe tener al menos 2 caracteres.';
+    if (nombre.length > 80) return 'La categoría no debe superar 80 caracteres.';
     return '';
   }
 
@@ -203,14 +203,14 @@ export class Productos implements OnDestroy {
         maxlength: 'El SKU no debe superar 40 caracteres.',
       },
       descripcion: {
-        required: 'Ingresa una descripcion del producto.',
-        minlength: 'La descripcion debe tener al menos 3 caracteres.',
-        maxlength: 'La descripcion no debe superar 2000 caracteres.',
+        required: 'Ingresa una descripción del producto.',
+        minlength: 'La descripción debe tener al menos 3 caracteres.',
+        maxlength: 'La descripción no debe superar 2000 caracteres.',
       },
-      categoriaId: { required: 'Selecciona una categoria.' },
+      categoriaId: { required: 'Selecciona una categoría.' },
       marcaId: { required: 'Selecciona una marca.' },
       proveedorId: { required: 'Selecciona un proveedor.' },
-      paisOrigen: { required: 'Selecciona el pais de origen.' },
+      paisOrigen: { required: 'Selecciona el país de origen.' },
       precioCompra: {
         required: 'Ingresa el precio de compra.',
         min: 'El precio de compra no puede ser negativo.',

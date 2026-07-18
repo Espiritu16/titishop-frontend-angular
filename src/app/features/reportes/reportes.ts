@@ -300,7 +300,7 @@ export class Reportes implements OnDestroy {
           { encabezado: 'Tipo', valor: (item) => (item as ReporteMovimientosResponse).tipo },
           { encabezado: 'Cantidad', valor: (item) => (item as ReporteMovimientosResponse).cantidad },
           { encabezado: 'Stock antes', valor: (item) => (item as ReporteMovimientosResponse).stockAntes },
-          { encabezado: 'Stock despues', valor: (item) => (item as ReporteMovimientosResponse).stockDespues },
+          { encabezado: 'Stock después', valor: (item) => (item as ReporteMovimientosResponse).stockDespues },
           { encabezado: 'Usuario', valor: (item) => (item as ReporteMovimientosResponse).creadoPorNombre },
           { encabezado: 'Estado', valor: (item) => ((item as ReporteMovimientosResponse).anulado ? 'ANULADO' : 'VIGENTE') },
         ],
@@ -316,22 +316,22 @@ export class Reportes implements OnDestroy {
     }
     if (this.pestanaActiva === 'critico') {
       return {
-        titulo: 'Reporte de stock critico',
-        modulo: 'reporte stock critico',
+        titulo: 'Reporte de stock crítico',
+        modulo: 'reporte stock crítico',
         items: this.stockCritico,
         columnas: [
           { encabezado: 'Producto', valor: (item) => (item as ReporteStockCriticoResponse).productoNombre },
           { encabezado: 'SKU', valor: (item) => (item as ReporteStockCriticoResponse).productoSku },
           { encabezado: 'Stock actual', valor: (item) => (item as ReporteStockCriticoResponse).stockActual },
-          { encabezado: 'Stock minimo', valor: (item) => (item as ReporteStockCriticoResponse).stockMinimo },
+          { encabezado: 'Stock mínimo', valor: (item) => (item as ReporteStockCriticoResponse).stockMinimo },
           { encabezado: 'Cantidad sugerida', valor: (item) => (item as ReporteStockCriticoResponse).cantidadSugerida },
-          { encabezado: 'Ubicacion', valor: (item) => (item as ReporteStockCriticoResponse).ubicacion },
+          { encabezado: 'Ubicación', valor: (item) => (item as ReporteStockCriticoResponse).ubicacion },
         ],
       };
     }
     return {
-      titulo: 'Reporte de valorizacion',
-      modulo: 'reporte valorizacion',
+      titulo: 'Reporte de valorización',
+      modulo: 'reporte valorización',
       items: this.valorizacionItems,
       columnas: [
         { encabezado: 'Producto', valor: (item) => (item as ReporteValorizacionItemResponse).productoNombre },
@@ -350,11 +350,11 @@ export class Reportes implements OnDestroy {
     return [
       { encabezado: 'Producto', valor: (item) => (item as ReporteStockResponse).productoNombre },
       { encabezado: 'SKU', valor: (item) => (item as ReporteStockResponse).productoSku },
-      { encabezado: 'Categoria', valor: (item) => (item as ReporteStockResponse).categoriaNombre },
+      { encabezado: 'Categoría', valor: (item) => (item as ReporteStockResponse).categoriaNombre },
       { encabezado: 'Marca', valor: (item) => (item as ReporteStockResponse).marcaNombre },
       { encabezado: 'Stock actual', valor: (item) => (item as ReporteStockResponse).stockActual },
-      { encabezado: 'Stock minimo', valor: (item) => (item as ReporteStockResponse).stockMinimo },
-      { encabezado: 'Ubicacion', valor: (item) => (item as ReporteStockResponse).ubicacion },
+      { encabezado: 'Stock mínimo', valor: (item) => (item as ReporteStockResponse).stockMinimo },
+      { encabezado: 'Ubicación', valor: (item) => (item as ReporteStockResponse).ubicacion },
       { encabezado: 'Estado', valor: (item) => (item as ReporteStockResponse).estado },
     ];
   }

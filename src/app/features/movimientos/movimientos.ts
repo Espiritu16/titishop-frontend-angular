@@ -344,7 +344,7 @@ export class Movimientos implements OnDestroy {
   async anularMovimiento(movimiento: MovimientoResponse): Promise<void> {
     const confirmado = await this.confirmacion.confirmar({
       titulo: 'Anular movimiento',
-      mensaje: `Se va a anular el movimiento ${movimiento.tipo} de ${movimiento.productoNombre}. Esta accion revierte el stock asociado.`,
+      mensaje: `Se va a anular el movimiento ${movimiento.tipo} de ${movimiento.productoNombre}. Esta acción revierte el stock asociado.`,
       textoConfirmar: 'Anular',
       tono: 'danger',
     });

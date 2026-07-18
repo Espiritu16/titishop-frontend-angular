@@ -106,14 +106,14 @@ export class Usuarios implements OnDestroy {
       },
       email: {
         required: 'Ingresa el correo del usuario.',
-        email: 'Ingresa un correo valido.',
+        email: 'Ingresa un correo válido.',
         maxlength: 'El correo no debe superar 160 caracteres.',
       },
       rol: { required: 'Selecciona un rol.' },
       password: {
-        required: 'Ingresa una contrasena.',
-        minlength: 'La contrasena debe tener al menos 8 caracteres.',
-        maxlength: 'La contrasena no debe superar 120 caracteres.',
+        required: 'Ingresa una contraseña.',
+        minlength: 'La contraseña debe tener al menos 8 caracteres.',
+        maxlength: 'La contraseña no debe superar 120 caracteres.',
       },
     } satisfies Partial<Record<keyof typeof this.usuarioForm.controls, Record<string, string>>>;
 

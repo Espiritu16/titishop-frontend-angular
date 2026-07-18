@@ -127,7 +127,7 @@ export class Login {
 
   private validarCodigo(): void {
     if (!/^\d{6}$/.test(this.recuperacionCodigo.trim())) {
-      this.error = 'Ingrese el codigo de 6 digitos.';
+      this.error = 'Ingrese el código de 6 dígitos.';
       return;
     }
     this.loading = true;
@@ -136,7 +136,7 @@ export class Login {
         this.loading = false;
         this.recuperacionResetToken = response.resetToken;
         this.recuperacionPaso = 'password';
-        this.message = 'Codigo validado. Ingresa tu nueva contrasena.';
+        this.message = 'Código validado. Ingresa tu nueva contraseña.';
       },
       error: (error: unknown) => {
         this.loading = false;
@@ -147,7 +147,7 @@ export class Login {
 
   private restablecerPassword(): void {
     if (this.recuperacionNuevaPassword.trim().length < 8) {
-      this.error = 'La nueva contrasena debe tener al menos 8 caracteres.';
+      this.error = 'La nueva contraseña debe tener al menos 8 caracteres.';
       return;
     }
     this.loading = true;
@@ -161,7 +161,7 @@ export class Login {
         this.message = response.mensaje;
         this.password = '';
         this.volverLogin();
-        this.message = 'Contrasena actualizada. Inicia sesion con tu nueva clave.';
+        this.message = 'Contraseña actualizada. Inicia sesión con tu nueva clave.';
       },
       error: (error: unknown) => {
         this.loading = false;
