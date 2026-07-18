@@ -323,24 +323,24 @@ export class Proveedores implements OnDestroy {
   fieldError(controlName: keyof typeof this.proveedorForm.controls): string {
     const mensajes = {
       razonSocial: {
-        required: 'Consulta o ingresa la razon social.',
-        minlength: 'La razon social debe tener al menos 3 caracteres.',
-        maxlength: 'La razon social no debe superar 120 caracteres.',
+        required: 'Consulta o ingresa la razón social.',
+        minlength: 'La razón social debe tener al menos 3 caracteres.',
+        maxlength: 'La razón social no debe superar 120 caracteres.',
       },
       ruc: {
         required: 'Ingresa el RUC.',
-        pattern: 'El RUC debe tener 11 digitos.',
+        pattern: 'El RUC debe tener 11 dígitos.',
       },
-      celular: { pattern: 'El celular debe tener 9 digitos.' },
-      telefono: { pattern: 'El telefono debe tener 9 digitos.' },
+      celular: { pattern: 'El celular debe tener 9 dígitos.' },
+      telefono: { pattern: 'El teléfono debe tener 9 dígitos.' },
       email: {
-        email: 'Ingresa un correo valido.',
+        email: 'Ingresa un correo válido.',
         maxlength: 'El correo no debe superar 160 caracteres.',
       },
       direccion: {
-        required: 'Consulta o ingresa la direccion.',
-        minlength: 'La direccion debe tener al menos 5 caracteres.',
-        maxlength: 'La direccion no debe superar 160 caracteres.',
+        required: 'Consulta o ingresa la dirección.',
+        minlength: 'La dirección debe tener al menos 5 caracteres.',
+        maxlength: 'La dirección no debe superar 160 caracteres.',
       },
     } satisfies Partial<Record<keyof typeof this.proveedorForm.controls, Record<string, string>>>;
 

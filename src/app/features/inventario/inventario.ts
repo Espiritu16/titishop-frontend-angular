@@ -99,13 +99,13 @@ export class Inventario implements OnDestroy {
         min: 'El stock actual no puede ser negativo.',
       },
       stockMinimo: {
-        required: 'Ingresa el stock minimo.',
-        min: 'El stock minimo no puede ser negativo.',
+        required: 'Ingresa el stock mínimo.',
+        min: 'El stock mínimo no puede ser negativo.',
       },
       ubicacion: {
-        required: 'Ingresa la ubicacion del producto.',
-        minlength: 'La ubicacion debe tener al menos 2 caracteres.',
-        maxlength: 'La ubicacion no debe superar 40 caracteres.',
+        required: 'Ingresa la ubicación del producto.',
+        minlength: 'La ubicación debe tener al menos 2 caracteres.',
+        maxlength: 'La ubicación no debe superar 40 caracteres.',
       },
     } satisfies Partial<Record<keyof typeof this.inventarioForm.controls, Record<string, string>>>;
 

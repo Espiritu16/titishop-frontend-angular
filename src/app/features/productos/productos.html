@@ -273,7 +273,7 @@
 	          <div>
 	            <label class="block text-sm font-medium text-gray-600 mb-1">Categoría *</label>
             <select formControlName="categoriaId" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
-              <option value="">Seleccionar categoria...</option>
+              <option value="">Seleccionar categoría...</option>
               @for (categoria of opcionesCategoriaProducto; track categoria.id) {
                 <option [value]="categoria.id">{{ categoria.nombre }}{{ categoria.estado === 'INACTIVO' ? ' (inactiva)' : '' }}</option>
               }
@@ -309,7 +309,7 @@
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">País de origen *</label>
             <select formControlName="paisOrigen" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400">
-              <option value="">Seleccionar pais...</option>
+              <option value="">Seleccionar país...</option>
               @for (pais of paisesOrigen; track pais) {
                 <option [value]="pais">{{ pais }}</option>
               }
