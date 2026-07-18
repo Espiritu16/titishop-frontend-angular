@@ -39,8 +39,12 @@ jobs:
 
             mkdir -p backups
             if docker compose ps mysql --status running >/dev/null 2>&1; then
-              docker compose exec -T mysql sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "backups/titishop_pre_deploy_$(date +%Y%m%d_%H%M%S).sql"
+              docker compose exec -T mysql sh -c 'mysqldump --no-tablespaces -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "backups/titishop_pre_deploy_$(date +%Y%m%d_%H%M%S).sql"
             fi
 
-            docker compose up -d --build backend frontend
+            docker ps -a --format '{{.ID}} {{.Names}}' \
+              | awk '$2 ~ /_[0-9a-f]+_titishop-(backend|frontend)$/ { print $1 }' \
+              | xargs -r docker rm -f
+
+            docker compose up -d --remove-orphans --build backend frontend
             docker compose ps
